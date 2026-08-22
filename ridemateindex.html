@@ -1,0 +1,2962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>RideMate - Campus Travel & Fare Split Network</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js for Expo Analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #f8faff;
+    }
+    .heading-font {
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    .clean-card {
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      box-shadow: 0 4px 16px -2px rgba(99, 102, 241, 0.05);
+      transition: all 0.2s ease;
+    }
+    .clean-card:hover {
+      border-color: #818cf8;
+      box-shadow: 0 10px 24px -4px rgba(99, 102, 241, 0.12);
+      transform: translateY(-2px);
+    }
+    .hero-gradient {
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #db2777 100%);
+    }
+    .btn-gradient {
+      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+      transition: all 0.2s ease;
+    }
+    .btn-gradient:hover:not(:disabled) {
+      filter: brightness(1.1);
+      box-shadow: 0 6px 18px -3px rgba(79, 70, 229, 0.35);
+    }
+    .btn-gradient:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    #map, #ride-modal-map {
+      height: 240px;
+      border-radius: 1rem;
+      z-index: 1;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 8px;
+    }
+    @keyframes sassyFloat {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-6px) rotate(1deg); }
+    }
+    .animate-sassy {
+      animation: sassyFloat 3.5s ease-in-out infinite;
+    }
+    @keyframes ghostPulse {
+      0%, 100% { filter: drop-shadow(0 0 8px rgba(220, 38, 38, 0.7)) hue-rotate(300deg); }
+      50% { filter: drop-shadow(0 0 18px rgba(220, 38, 38, 1)) hue-rotate(360deg); }
+    }
+    .ghost-glow {
+      animation: ghostPulse 2s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col pb-24 md:pb-0 selection:bg-indigo-500 selection:text-white">
+
+  <!-- OFFLINE / CONFIG STATUS BANNER -->
+  <div id="offline-status-banner" class="hidden bg-amber-500 text-slate-950 px-4 py-2 text-xs font-bold text-center border-b border-amber-600 flex items-center justify-center gap-2 z-50">
+    <i data-lucide="alert-triangle" class="w-4 h-4 text-slate-950 flex-shrink-0"></i>
+    <span id="offline-status-text">Firestore Notice: Connect real Firebase API credentials in script config to broadcast live campus sync across devices.</span>
+  </div>
+
+  <!-- 3-SECOND TRANSITION ANIMATION WITH HELLO RIDEMATE VOICE -->
+  <div id="splash-screen" class="fixed inset-0 z-[100] bg-indigo-900 text-white flex flex-col items-center justify-center hidden p-6 text-center">
+    <div class="w-20 h-20 rounded-3xl bg-gradient-to-tr from-amber-400 via-pink-500 to-indigo-400 p-[2px] animate-pulse shadow-2xl">
+      <div class="w-full h-full bg-indigo-950 rounded-3xl flex items-center justify-center">
+        <i data-lucide="zap" class="w-10 h-10 text-amber-300 fill-amber-300"></i>
+      </div>
+    </div>
+    <h2 class="heading-font text-3xl font-black mt-6 tracking-tight">RideMate Campus Hub</h2>
+    <p class="text-xs text-indigo-200 mt-1 max-w-xs">Connecting TM Palayam Hostelers & Student Commuters...</p>
+    
+    <div class="w-48 h-2 bg-indigo-950 rounded-full mt-6 overflow-hidden border border-indigo-700/50">
+      <div id="splash-progress" class="h-full bg-gradient-to-r from-amber-400 to-pink-500 w-0 transition-all duration-[2000ms] ease-out"></div>
+    </div>
+  </div>
+
+  <!-- TOP APP HEADER -->
+  <header id="navbar" class="hidden bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-slate-200 shadow-sm">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center space-x-2.5 cursor-pointer" onclick="clickSound(); navigate('explore');">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-md shadow-indigo-200">
+          <i data-lucide="car" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <span class="heading-font text-xl font-black tracking-tight text-slate-900">Ride<span class="text-indigo-600">Mate</span></span>
+          <span class="hidden sm:inline-block ml-1.5 text-[9px] font-extrabold uppercase tracking-widest bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200">TM Palayam Hub</span>
+        </div>
+      </div>
+
+      <!-- Live Clock Bar -->
+      <div class="hidden sm:flex items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700">
+        <i data-lucide="clock" class="w-3.5 h-3.5 text-indigo-600"></i>
+        <span id="live-time-display">--:--:-- PM</span>
+        <span id="night-mode-indicator" class="hidden text-[10px] text-red-600 font-extrabold ml-1 bg-red-100 px-1.5 py-0.5 rounded">🎃 11PM-1AM Ghost Hour</span>
+      </div>
+
+      <!-- Desktop Nav Buttons -->
+      <div class="hidden md:flex items-center space-x-2">
+        <button onclick="clickSound(); navigate('explore');" class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-indigo-600 hover:bg-indigo-50 transition flex items-center gap-1.5">
+          <i data-lucide="compass" class="w-4 h-4 text-indigo-500"></i> Explore
+        </button>
+        <button onclick="clickSound(); navigate('create');" class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-indigo-600 hover:bg-indigo-50 transition flex items-center gap-1.5">
+          <i data-lucide="plus-circle" class="w-4 h-4 text-pink-500"></i> Post Ride
+        </button>
+        <button onclick="clickSound(); navigate('my-rides');" class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-indigo-600 hover:bg-indigo-50 transition flex items-center gap-1.5">
+          <i data-lucide="layers" class="w-4 h-4 text-emerald-500"></i> My Bookings
+        </button>
+        <button onclick="clickSound(); navigate('analytics');" class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-indigo-600 hover:bg-indigo-50 transition flex items-center gap-1.5">
+          <i data-lucide="bar-chart-2" class="w-4 h-4 text-amber-500"></i> Expo Insights
+        </button>
+      </div>
+
+      <!-- User Profile & Controls -->
+      <div class="flex items-center space-x-2">
+        <button onclick="clickSound(); openFeedbackModal();" class="px-2.5 py-1.5 text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 rounded-xl hover:bg-amber-100 transition flex items-center gap-1">
+          <i data-lucide="message-circle" class="w-3.5 h-3.5 text-amber-600"></i> <span class="hidden sm:inline">Feedback</span>
+        </button>
+        <button onclick="clickSound(); navigate('profile');" class="flex items-center space-x-2 p-1 bg-slate-100 hover:bg-indigo-50 border border-slate-200 rounded-full transition">
+          <img id="nav-avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" class="w-7 h-7 rounded-full object-cover border border-indigo-400" alt="Avatar">
+          <span id="nav-username" class="text-xs font-bold text-slate-700 pr-2 hidden sm:inline">Student</span>
+        </button>
+        <button onclick="clickSound(); logout();" class="p-2 text-slate-400 hover:text-rose-500 rounded-lg" title="Logout">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-grow max-w-6xl w-full mx-auto p-4 sm:p-6 space-y-6">
+
+    <!-- 1. LOGIN & SIGNUP PAGE -->
+    <section id="auth-page" class="my-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+      
+      <div class="lg:col-span-6 bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[380px]">
+        <div class="relative z-10">
+          <div class="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-amber-300 text-xs font-bold mb-4">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Daily Wisdom & Jokes
+          </div>
+          <h3 id="meme-quote" class="heading-font text-xl sm:text-2xl font-black leading-snug text-white">
+            "Every journey starts with a single step, but having good companions makes the distance feel like nothing."
+          </h3>
+          <p id="meme-sub" class="text-xs text-indigo-200 mt-3 font-medium">🌟 Life Quote: Travel together, grow together.</p>
+        </div>
+
+        <div class="relative z-10 pt-6 border-t border-white/10 flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <div class="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping"></div>
+            <span class="text-xs text-indigo-100 font-semibold" id="auth-live-stat">Verified Student Network Active</span>
+          </div>
+          <button onclick="clickSound(); rotateMemeQuote();" class="text-xs text-amber-300 font-bold hover:underline flex items-center gap-1">
+            <i data-lucide="refresh-cw" class="w-3 h-3"></i> Next Quote / Joke
+          </button>
+        </div>
+      </div>
+
+      <div class="lg:col-span-6 bg-white p-6 sm:p-8 rounded-3xl shadow-lg border border-slate-200">
+        <div class="mb-6">
+          <h2 class="heading-font text-2xl font-black text-slate-900" id="auth-title">Student Sign In</h2>
+          <p class="text-xs text-slate-500 mt-0.5" id="auth-subtitle">Enter your student email or roll number to join campus auto & cab pools</p>
+        </div>
+
+        <!-- Google OAuth 1-Click Sign-In Button -->
+        <button type="button" id="google-signin-btn" onclick="clickSound(); handleGoogleSignIn();" class="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl shadow-sm text-slate-700 font-bold text-xs sm:text-sm transition hover:shadow active:scale-[0.99]">
+          <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          <span>Sign in with Google</span>
+        </button>
+
+        <div class="relative my-4">
+          <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200"></div></div>
+          <div class="relative flex justify-center text-[10px] uppercase font-extrabold tracking-wider"><span class="bg-white px-2.5 text-slate-400">Or with Student Credentials</span></div>
+        </div>
+
+        <form id="auth-form" onsubmit="triggerSplashLogin(event)" class="space-y-4">
+          <div>
+            <label class="block text-[11px] font-extrabold tracking-wider text-slate-600 uppercase mb-1">Student Roll No / Email</label>
+            <input type="text" id="auth-user" required placeholder="e.g. 721422CS001 or student@college.edu" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none text-sm font-medium">
+          </div>
+
+          <div id="signup-fields" class="hidden space-y-3">
+            <div>
+              <label class="block text-[11px] font-extrabold tracking-wider text-slate-600 uppercase mb-1">Full Student Name</label>
+              <input type="text" id="auth-name" placeholder="e.g. Arun Kumar" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[11px] font-extrabold tracking-wider text-slate-600 uppercase mb-1">Living Type</label>
+                <select id="auth-stay-type" onchange="toggleStayOptions()" class="w-full px-2.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold outline-none">
+                  <option value="Hostel">College Hostel</option>
+                  <option value="Outside Room">Outside Room / PG</option>
+                  <option value="Day Scholar">Day Scholar</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[11px] font-extrabold tracking-wider text-slate-600 uppercase mb-1">Block / Area</label>
+                <select id="auth-block-select" class="w-full px-2.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold outline-none">
+                  <option value="Priyanka Block (Girls)">Priyanka Block (Girls)</option>
+                  <option value="Kamala Block (Girls)">Kamala Block (Girls)</option>
+                  <option value="Priyadharshini Block (Girls)">Priyadharshini Block (Girls)</option>
+                  <option value="APJ Block (Boys)">APJ Block (Boys)</option>
+                  <option value="Ramanujan Block (Boys)">Ramanujan Block (Boys)</option>
+                </select>
+                <input type="text" id="auth-outside-input" placeholder="e.g. Near TM Palayam Junction" class="hidden w-full px-2.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs outline-none">
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-extrabold tracking-wider text-slate-600 uppercase mb-1">Password</label>
+            <input type="password" id="auth-pass" required placeholder="••••••••" minlength="6" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none text-sm font-medium">
+          </div>
+
+          <button type="submit" id="auth-btn" class="w-full btn-gradient text-white font-bold py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2">
+            <span id="auth-btn-text">Sign In to RideMate</span>
+          </button>
+        </form>
+
+        <div class="text-center mt-4">
+          <p class="text-xs text-slate-500" id="auth-toggle-text">
+            New hosteler? 
+            <button onclick="clickSound(); toggleAuthMode();" class="text-indigo-600 font-bold hover:underline">Create Account</button>
+          </p>
+        </div>
+
+        <div class="mt-4 p-2.5 bg-indigo-50/70 rounded-xl border border-indigo-100 text-xs text-indigo-900 flex items-center justify-between">
+          <span class="flex items-center gap-1.5 font-medium"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-indigo-600"></i> Role-Based Firebase Auth:</span>
+          <span class="font-mono text-[11px] font-bold text-indigo-700">Verified UIDs</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. EXPLORE & SEARCH RIDES -->
+    <section id="explore-page" class="hidden space-y-6">
+
+      <!-- Hero Banner -->
+      <div class="hero-gradient p-6 sm:p-8 rounded-3xl text-white shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div class="space-y-1">
+          <div class="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-amber-300 text-xs font-bold">
+            <i data-lucide="zap" class="w-3.5 h-3.5"></i> Single Source of Truth • Real-Time Firestore Sync
+          </div>
+          <h1 class="heading-font text-2xl sm:text-3xl font-black">Campus Travel Pools</h1>
+          <p class="text-xs sm:text-sm text-indigo-100 max-w-xl">Find direct rides or multi-drop cabs. Equal split for same destination, mathematically fair per-km split for intermediate drops.</p>
+        </div>
+        <button onclick="clickSound(); navigate('create');" class="bg-amber-400 hover:bg-amber-300 text-indigo-950 font-extrabold px-5 py-3 rounded-2xl shadow-lg transition text-xs sm:text-sm flex items-center gap-2 flex-shrink-0">
+          <i data-lucide="plus-circle" class="w-4 h-4"></i> Offer New Pool
+        </button>
+      </div>
+
+      <!-- Quick Route Filter Shortcuts -->
+      <div class="space-y-1.5">
+        <div class="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+          <i data-lucide="map-pin" class="w-3.5 h-3.5 text-indigo-600"></i> Verified Campus Corridors:
+        </div>
+        <div class="flex items-center gap-2 overflow-x-auto pb-1 custom-scroll text-xs">
+          <button onclick="clickSound(); setQuickFilter('');" class="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-400 text-slate-700 font-bold whitespace-nowrap shadow-sm">All Routes</button>
+          <button onclick="clickSound(); setQuickFilter('TM Palayam Pirivu');" class="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-400 text-slate-700 font-bold whitespace-nowrap shadow-sm">📍 TM Palayam (3km)</button>
+          <button onclick="clickSound(); setQuickFilter('Madhukkarai');" class="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-400 text-slate-700 font-bold whitespace-nowrap shadow-sm">📍 Madhukkarai (6km)</button>
+          <button onclick="clickSound(); setQuickFilter('Ukkadam');" class="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-400 text-slate-700 font-bold whitespace-nowrap shadow-sm">📍 Ukkadam (12km)</button>
+          <button onclick="clickSound(); setQuickFilter('Gandhipuram');" class="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-400 text-slate-700 font-bold whitespace-nowrap shadow-sm">📍 Gandhipuram (20km)</button>
+          <button onclick="clickSound(); setQuickFilter('Palakkad');" class="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 hover:border-emerald-400 text-emerald-800 font-bold whitespace-nowrap shadow-sm">🌴 Palakkad Junction, KL (35km)</button>
+          <button onclick="clickSound(); setQuickFilter('Walayar');" class="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 hover:border-emerald-400 text-emerald-800 font-bold whitespace-nowrap shadow-sm">🌴 Walayar Checkpost (10km)</button>
+        </div>
+      </div>
+
+      <!-- Search & Filters -->
+      <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
+        <div class="sm:col-span-6 relative">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5"></i>
+          <input type="text" id="search-dest" oninput="renderRides()" placeholder="Search destination, block name, or vehicle..." class="w-full pl-10 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm outline-none focus:border-indigo-500 font-medium">
+        </div>
+        <div class="sm:col-span-3">
+          <select id="filter-type" onchange="clickSound(); renderRides();" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold outline-none text-slate-700">
+            <option value="All">All Vehicles</option>
+            <option value="Cab">Cab / Taxi (4 Seater)</option>
+            <option value="Auto">Auto Rickshaw (3-4 Seater)</option>
+            <option value="Share-Auto">Share Auto (Max 6)</option>
+          </select>
+        </div>
+        <div class="sm:col-span-3">
+          <select id="filter-gender" onchange="clickSound(); renderRides();" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold outline-none text-slate-700">
+            <option value="All">All Groups</option>
+            <option value="Girls Only">Girls Only</option>
+            <option value="Mixed">Mixed / Open</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Rides Grid -->
+      <div id="rides-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- COMING SOON: SPLITCART / COMBOMATE FEATURE CARD -->
+      <div class="bg-gradient-to-r from-amber-500/10 via-pink-500/10 to-indigo-500/10 border-2 border-dashed border-amber-300 rounded-3xl p-6 relative overflow-hidden">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div class="space-y-1.5">
+            <div class="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-400 text-indigo-950 rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm">
+              <i data-lucide="sparkles" class="w-3 h-3"></i> Feature Preview • Coming Soon
+            </div>
+            <h3 class="heading-font text-xl font-black text-slate-900">SplitCart: Campus Book & Combo Buy Sharing</h3>
+            <p class="text-xs text-slate-600 max-w-2xl leading-relaxed">
+              Buying Amazon/Flipkart book bundles (e.g. 2 semester books for ₹500)? Post the combo here, find a junior/peer who wants the other book, and split the cost 50-50 (₹250 each)! No wasted purchases.
+            </p>
+          </div>
+          <button onclick="clickSound(); alert('SplitCart is launching next semester for hostel book combos!');" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold whitespace-nowrap shadow-md">
+            Notify Me on Launch 📚
+          </button>
+        </div>
+      </div>
+
+      <!-- Overview Campus Transit Map -->
+      <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+          <div>
+            <h3 class="heading-font text-base font-bold text-slate-900 flex items-center gap-1.5">
+              <i data-lucide="map" class="w-4 h-4 text-indigo-600"></i> Campus Transit Network Overview
+            </h3>
+            <p class="text-[11px] text-slate-500">Tap markers to view distance from Nehru College Campus Gate.</p>
+          </div>
+          <span class="text-[10px] font-extrabold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-100">CBE ↔ Palakkad</span>
+        </div>
+        <div id="map"></div>
+      </div>
+
+    </section>
+
+    <!-- 3. CREATE RIDE POOL -->
+    <section id="create-page" class="hidden max-w-xl mx-auto bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-lg">
+      <div class="flex items-center space-x-3 border-b border-slate-100 pb-4 mb-5">
+        <div class="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+          <i data-lucide="plus-circle" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h2 class="heading-font text-xl font-bold text-slate-900">Post a Ride Pool</h2>
+          <p class="text-xs text-slate-500">Choose direct destination or permit multi-drop routes</p>
+        </div>
+      </div>
+
+      <form id="create-ride-form" onsubmit="handleCreateRide(event)" class="space-y-4">
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-extrabold tracking-wider text-slate-600 uppercase mb-1">Pick-up Location</label>
+            <select id="ride-origin" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:border-indigo-500">
+              <option value="Nehru College Campus Main Gate">Nehru College Campus Main Gate</option>
+              <option value="Girls Hostel (Priyanka / Kamala / Priyadharshini)">Girls Hostel (Priyanka/Kamala/Priyadharshini)</option>
+              <option value="Boys Hostel (APJ / Ramanujan Block)">Boys Hostel (APJ/Ramanujan Block)</option>
+              <option value="TM Palayam Town / Rental Rooms">TM Palayam Town / Rental Rooms</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-extrabold tracking-wider text-slate-600 uppercase mb-1">Final Destination</label>
+            <select id="ride-dest" onchange="autoPopulateDistance()" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:border-indigo-500">
+              <option value="Gandhipuram Central Bus Stand" data-km="20" data-fare="500">Gandhipuram (20km - ₹500)</option>
+              <option value="Ukkadam Bus Stand" data-km="12" data-fare="350">Ukkadam (12km - ₹350)</option>
+              <option value="Madhukkarai Market" data-km="6" data-fare="200">Madhukkarai Market (6km - ₹200)</option>
+              <option value="TM Palayam Pirivu" data-km="3" data-fare="70">TM Palayam Pirivu (3km - ₹70)</option>
+              <option value="Palakkad Junction Railway Stn (Kerala)" data-km="35" data-fare="600">Palakkad Junction KL (35km - ₹600)</option>
+              <option value="Walayar Checkpost (Kerala)" data-km="10" data-fare="200">Walayar Checkpost KL (10km - ₹200)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-extrabold tracking-wider text-slate-600 uppercase mb-1">Route & Drop Policy</label>
+            <select id="ride-route-policy" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold outline-none">
+              <option value="Any Stop Allowed">📍 Intermediate Drops Allowed (Distance-Split)</option>
+              <option value="Direct Only">🎯 Direct to Final Stop Only (Equal Split)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-extrabold tracking-wider text-slate-600 uppercase mb-1">Payment Method</label>
+            <select id="ride-payment-mode" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold outline-none">
+              <option value="GPay / UPI Accepted">📱 GPay / UPI Accepted</option>
+              <option value="Cash Only">💵 Cash Only</option>
+              <option value="Any Mode (Cash or UPI)">💳 Any Mode (Cash or UPI)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-[11px] font-extrabold tracking-wider text-slate-600 uppercase mb-1">Departure Time</label>
+            <input type="datetime-local" id="ride-time" required class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold outline-none">
+          </div>
+          <div>
+            <label class="block text-[11px] font-extrabold tracking-wider text-slate-600 uppercase mb-1">Vehicle</label>
+            <select id="ride-vehicle" onchange="autoFillSeats()" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold outline-none">
+              <option value="Cab">Cab / Taxi (4 Seats)</option>
+              <option value="Auto">Auto (3-4 Seats)</option>
+              <option value="Share-Auto">Share Auto (Max 6)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-extrabold tracking-wider text-slate-600 uppercase mb-1">Group Filter</label>
+            <select id="ride-group-type" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold outline-none">
+              <option value="Girls Only">Girls Only</option>
+              <option value="Mixed">Mixed / Any</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-[11px] font-extrabold tracking-wider text-slate-600 uppercase mb-1">Total Fare (₹)</label>
+            <input type="number" id="ride-fare" value="500" min="10" max="3500" required class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold outline-none">
+          </div>
+          <div>
+            <label class="block text-[11px] font-extrabold tracking-wider text-slate-600 uppercase mb-1">Distance (km)</label>
+            <input type="number" id="ride-km" value="20" min="1" max="100" required readonly class="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-semibold outline-none text-slate-600">
+          </div>
+          <div>
+            <label class="block text-[11px] font-extrabold tracking-wider text-slate-600 uppercase mb-1">Capacity</label>
+            <input type="number" id="ride-seats" value="4" min="1" max="6" required class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold outline-none">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-extrabold tracking-wider text-slate-600 uppercase mb-1">Trip Note & Pick-up Landmark</label>
+          <input type="text" id="ride-note" maxlength="150" placeholder="e.g. Leaving from Priyanka block arch. Exact cash or GPay ready!" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium outline-none">
+        </div>
+
+        <div class="flex gap-2.5 pt-2">
+          <button type="button" onclick="clickSound(); navigate('explore');" class="w-1/2 py-2.5 border border-slate-300 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-50">Cancel</button>
+          <button type="submit" id="create-submit-btn" class="w-1/2 py-2.5 btn-gradient text-white font-bold rounded-xl text-xs shadow-md flex items-center justify-center gap-1.5">
+            <span>Post Ride</span>
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- 4. MY BOOKED RIDES & EDITING -->
+    <section id="my-rides-page" class="hidden space-y-6">
+      <div class="border-b border-slate-200 pb-3">
+        <h2 class="heading-font text-2xl font-black text-slate-900">My Joined & Created Pools</h2>
+        <p class="text-xs text-slate-500">Track distance fare splits, open ride chatrooms, view route maps, or edit your posted pools.</p>
+      </div>
+
+      <div id="my-rides-container" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- 5. STUDENT PROFILE -->
+    <section id="profile-page" class="hidden max-w-lg mx-auto bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-lg">
+      <div class="text-center mb-6">
+        <div class="relative inline-block">
+          <img id="profile-avatar-preview" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80" class="w-24 h-24 rounded-full border-4 border-indigo-500 object-cover mx-auto shadow-md" alt="Avatar">
+          <label for="avatar-file-input" class="absolute bottom-0 right-0 p-2 bg-indigo-600 hover:bg-indigo-700 rounded-full text-white cursor-pointer shadow-md" title="Upload Custom Photo">
+            <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+            <input type="file" id="avatar-file-input" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+          </label>
+        </div>
+        <div class="flex items-center justify-center gap-1.5 mt-2">
+          <h2 id="profile-display-name" class="heading-font text-xl font-bold text-slate-900">Student Commuter</h2>
+          <span class="inline-flex items-center gap-0.5 px-2 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-extrabold rounded-full" title="Verified Campus Student">
+            <i data-lucide="shield-check" class="w-3 h-3 text-emerald-600"></i> Verified
+          </span>
+
+        </div>
+        <div id="profile-badge-stay" class="inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 mt-1">
+          Priyanka Block (Girls Hostel)
+        </div>
+      </div>
+
+      <form id="profile-form" onsubmit="handleSaveProfile(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-[11px] font-extrabold tracking-wider text-slate-600 uppercase mb-1">Display Name</label>
+          <input type="text" id="edit-name" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] font-extrabold tracking-wider text-slate-600 uppercase mb-1">Living Type</label>
+            <select id="edit-stay-type" onchange="toggleEditStayOptions()" class="w-full px-2.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold">
+              <option value="Hostel">College Hostel</option>
+              <option value="Outside Room">Outside Room / PG</option>
+              <option value="Day Scholar">Day Scholar</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-extrabold tracking-wider text-slate-600 uppercase mb-1">Hostel Block / Address</label>
+            <select id="edit-block-select" class="w-full px-2.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold">
+              <option value="Priyanka Block (Girls)">Priyanka Block (Girls)</option>
+              <option value="Kamala Block (Girls)">Kamala Block (Girls)</option>
+              <option value="Priyadharshini Block (Girls)">Priyadharshini Block (Girls)</option>
+              <option value="APJ Block (Boys)">APJ Block (Boys)</option>
+              <option value="Ramanujan Block (Boys)">Ramanujan Block (Boys)</option>
+            </select>
+            <input type="text" id="edit-outside-input" placeholder="e.g. Near TM Palayam Junction" class="hidden w-full px-2.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-extrabold tracking-wider text-slate-600 uppercase mb-1">Phone / WhatsApp (Co-passengers only)</label>
+          <input type="text" id="edit-phone" placeholder="9876543210" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold">
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-extrabold tracking-wider text-slate-600 uppercase mb-1">Commute Bio</label>
+          <textarea id="edit-bio" rows="2" maxlength="160" placeholder="CSBS student. Commutes to TM Palayam and Palakkad." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs"></textarea>
+        </div>
+
+        <button type="submit" id="save-profile-btn" class="w-full py-2.5 btn-gradient text-white font-bold rounded-xl text-xs shadow-md">Save Profile Changes</button>
+      </form>
+
+      <!-- Testing Toggle for Ghost Mode -->
+      <div class="mt-5 p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between text-xs">
+        <div>
+          <span class="font-bold text-slate-700">Test Ghost Hour Mode (11PM - 1AM):</span>
+          <p class="text-[10px] text-slate-500">Chibi transforms into creepy nocturnal bot!</p>
+        </div>
+        <button onclick="toggleAnnabelleManual();" class="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-xl text-xs border border-red-200">
+          Toggle Ghost Mode
+        </button>
+      </div>
+    </section>
+
+    <!-- 6. EXPO LIVE ANALYTICS DASHBOARD -->
+    <section id="analytics-page" class="hidden space-y-6">
+      <div class="border-b border-slate-200 pb-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <div>
+          <h2 class="heading-font text-2xl font-black text-slate-900 flex items-center gap-2">
+            <i data-lucide="bar-chart-3" class="w-6 h-6 text-indigo-600"></i> Expo Insights: Student Commute Analytics
+          </h2>
+          <p class="text-xs text-slate-500">Live platform metrics analyzing transit destinations, peak travel hours, vehicle split demand, and inter-block connectivity.</p>
+        </div>
+        <span class="text-[10px] font-extrabold bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full border border-indigo-200">Live Pool Aggregations</span>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="text-[10px] font-extrabold text-slate-500 uppercase">Active Commuters</div>
+          <div id="stat-active-commuters" class="text-2xl font-black text-indigo-600 mt-1">428+</div>
+          <div class="text-[10px] text-emerald-600 font-bold mt-0.5">↑ Active this week</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="text-[10px] font-extrabold text-slate-500 uppercase">Total Fares Saved</div>
+          <div id="stat-total-saved" class="text-2xl font-black text-emerald-600 mt-1">₹68,450</div>
+          <div class="text-[10px] text-slate-500 font-bold mt-0.5">Avg ₹145 / trip</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="text-[10px] font-extrabold text-slate-500 uppercase">Kerala Transit Pools</div>
+          <div id="stat-kerala-percent" class="text-2xl font-black text-amber-600 mt-1">36%</div>
+          <div class="text-[10px] text-slate-500 font-bold mt-0.5">Palakkad & Walayar</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="text-[10px] font-extrabold text-slate-500 uppercase">Auto vs Cab Ratio</div>
+          <div id="stat-vehicle-ratio" class="text-2xl font-black text-violet-600 mt-1">68 : 32</div>
+          <div class="text-[10px] text-slate-500 font-bold mt-0.5">Autos lead for short runs</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
+          <h4 class="font-bold text-xs text-slate-900 mb-2 flex items-center gap-1.5">
+            <i data-lucide="pie-chart" class="w-4 h-4 text-indigo-600"></i> Top Commute Destinations
+          </h4>
+          <div class="h-56 relative flex items-center justify-center">
+            <canvas id="destChart"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
+          <h4 class="font-bold text-xs text-slate-900 mb-2 flex items-center gap-1.5">
+            <i data-lucide="users" class="w-4 h-4 text-pink-600"></i> Commuters by Residence & Blocks
+          </h4>
+          <div class="h-56 relative flex items-center justify-center">
+            <canvas id="blockChart"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm md:col-span-2">
+          <h4 class="font-bold text-xs text-slate-900 mb-2 flex items-center gap-1.5">
+            <i data-lucide="trending-up" class="w-4 h-4 text-emerald-600"></i> Peak Departure Timing Trends
+          </h4>
+          <div class="h-56 relative">
+            <canvas id="timeChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. EDIT RIDE MODAL -->
+    <div id="edit-ride-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+      <div class="bg-white w-full max-w-lg rounded-3xl p-6 border border-slate-200 shadow-2xl space-y-4">
+        <div class="flex justify-between items-center border-b pb-3">
+          <h3 class="heading-font font-bold text-slate-900 text-lg">Edit Posted Ride Pool</h3>
+          <button onclick="clickSound(); closeEditModal();" class="p-1.5 text-slate-400 hover:text-slate-800 rounded-lg">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <form id="edit-ride-form" onsubmit="handleSaveEditedRide(event)" class="space-y-3">
+          <input type="hidden" id="edit-ride-id">
+          
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-extrabold text-slate-600 uppercase mb-1">Departure Time</label>
+              <input type="datetime-local" id="edit-ride-time" required class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold">
+            </div>
+            <div>
+              <label class="block text-[11px] font-extrabold text-slate-600 uppercase mb-1">Total Trip Fare (₹)</label>
+              <input type="number" id="edit-ride-fare" min="10" max="3500" required class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-extrabold text-slate-600 uppercase mb-1">Payment Mode</label>
+              <select id="edit-ride-payment" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold">
+                <option value="GPay / UPI Accepted">📱 GPay / UPI Accepted</option>
+                <option value="Cash Only">💵 Cash Only</option>
+                <option value="Any Mode (Cash or UPI)">💳 Any Mode</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] font-extrabold text-slate-600 uppercase mb-1">Drop Policy</label>
+              <select id="edit-ride-policy" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold">
+                <option value="Any Stop Allowed">📍 Intermediate Drops Allowed</option>
+                <option value="Direct Only">🎯 Direct Final Stop Only</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-extrabold text-slate-600 uppercase mb-1">Update Landmark / Note</label>
+            <input type="text" id="edit-ride-note" maxlength="150" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium">
+          </div>
+
+          <div class="flex gap-2 pt-2">
+            <button type="button" onclick="clickSound(); closeEditModal();" class="w-1/3 py-2 border rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">Cancel</button>
+            <button type="button" id="delete-pool-btn" onclick="clickSound(); deleteRide(document.getElementById('edit-ride-id').value);" class="w-1/3 py-2 bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 font-bold rounded-xl text-xs">Delete Pool</button>
+            <button type="submit" id="save-edit-btn" class="w-1/3 py-2 btn-gradient text-white font-bold rounded-xl text-xs">Save & Log Edit</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 8. JOIN WITH CUSTOM DROP & LIVE ROUTE MAP MODAL -->
+    <div id="join-drop-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+      <div class="bg-white w-full max-w-lg rounded-3xl p-6 border border-slate-200 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto custom-scroll">
+        <div class="flex justify-between items-center border-b pb-2">
+          <h3 class="heading-font font-bold text-slate-900 text-base flex items-center gap-1.5">
+            <i data-lucide="map-pin" class="w-4 h-4 text-indigo-600"></i> Route Map & Select Drop Stop
+          </h3>
+          <button onclick="clickSound(); closeJoinModal();" class="p-1 text-slate-400 hover:text-slate-800">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <div class="space-y-1">
+          <div class="text-[11px] font-bold text-slate-500 uppercase">Vehicle Transit Path & Distance Stops:</div>
+          <div id="ride-modal-map"></div>
+        </div>
+
+        <form id="join-drop-form" onsubmit="handleConfirmJoin(event)" class="space-y-3">
+          <input type="hidden" id="join-target-ride-id">
+          
+          <div>
+            <label class="block text-[11px] font-extrabold text-slate-600 uppercase mb-1">Your Drop Location</label>
+            <select id="join-stop-select" onchange="calculateDropPreview()" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+
+          <div class="bg-gradient-to-r from-indigo-50 to-purple-50 p-3.5 rounded-2xl border border-indigo-100 flex justify-between items-center">
+            <div>
+              <div class="text-[10px] uppercase font-extrabold text-slate-400">Your Segment Distance</div>
+              <div id="join-km-preview" class="text-sm font-bold text-slate-800">6 km</div>
+            </div>
+            <div class="text-right">
+              <div class="text-[10px] uppercase font-extrabold text-indigo-600">Your Segment Share</div>
+              <div id="join-fare-preview" class="text-xl font-black text-indigo-900">₹50</div>
+            </div>
+          </div>
+
+          <div class="flex gap-2 pt-1">
+            <button type="button" onclick="clickSound(); closeJoinModal();" class="w-1/2 py-2.5 border rounded-xl text-xs font-bold text-slate-600">Cancel</button>
+            <button type="submit" id="confirm-join-btn" class="w-1/2 py-2.5 btn-gradient text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1">
+              <span>Confirm & Join Pool</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 9. CHAT MODAL -->
+    <div id="chat-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+      <div class="bg-white w-full max-w-xl rounded-3xl border border-slate-200 overflow-hidden flex flex-col h-[520px] max-h-[90vh] shadow-2xl">
+        
+        <div class="p-3.5 bg-indigo-600 text-white flex justify-between items-center">
+          <div class="flex items-center space-x-2">
+            <div class="p-1.5 bg-white/20 rounded-lg">
+              <i data-lucide="message-square" class="w-4 h-4 text-amber-300"></i>
+            </div>
+            <div>
+              <h3 id="modal-route-title" class="font-bold text-sm">Nehru College → Gandhipuram</h3>
+              <p id="modal-sub-info" class="text-[10px] text-indigo-100">Distance-Split Active</p>
+            </div>
+          </div>
+          <button onclick="clickSound(); closeChatModal();" class="p-1.5 text-white/80 hover:text-white">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <div class="bg-slate-50 px-3 py-2 border-b border-slate-200 flex items-center justify-between text-xs">
+          <div id="modal-passengers-list" class="flex items-center gap-1.5 overflow-x-auto"></div>
+          <div class="font-mono text-indigo-700 font-extrabold bg-indigo-100 px-2 py-0.5 rounded-lg text-xs">Authorized Pool Chat</div>
+        </div>
+
+        <div id="modal-chat-body" class="flex-grow p-4 overflow-y-auto space-y-2.5 custom-scroll bg-slate-50/50 text-xs"></div>
+
+        <form id="chat-input-form" onsubmit="handleSendMessage(event)" class="p-2.5 bg-white border-t border-slate-200 flex gap-2">
+          <input type="text" id="chat-text-input" maxlength="200" placeholder="Discuss exact pickup gate or time..." required class="flex-grow px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-500">
+          <button type="submit" id="chat-send-btn" class="px-4 py-2 btn-gradient text-white font-bold rounded-xl text-xs flex items-center gap-1">
+            <span>Send</span> <i data-lucide="send" class="w-3 h-3"></i>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 10. STUDENT FEEDBACK MODAL -->
+    <div id="feedback-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+      <div class="bg-white w-full max-w-md rounded-3xl p-6 border border-slate-200 shadow-2xl space-y-4">
+        <div class="flex justify-between items-center border-b pb-2">
+          <h3 class="heading-font font-bold text-slate-900 text-base flex items-center gap-1.5">
+            <i data-lucide="message-circle" class="w-4 h-4 text-amber-500"></i> Student Feedback & Ideas
+          </h3>
+          <button onclick="clickSound(); closeFeedbackModal();" class="p-1 text-slate-400 hover:text-slate-800">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <form id="feedback-form" onsubmit="handleSendFeedback(event)" class="space-y-3">
+          <div>
+            <label class="block text-[11px] font-extrabold text-slate-600 uppercase mb-1">Feedback Category</label>
+            <select id="feedback-category" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold">
+              <option value="Distance Split Accuracy">Distance Split Accuracy</option>
+              <option value="New Route Suggestion">New Route Suggestion</option>
+              <option value="Safety & Verification">Safety & Verification</option>
+              <option value="App Improvement">App Improvement / Bug</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-extrabold text-slate-600 uppercase mb-1">Rating</label>
+            <select id="feedback-rating" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold">
+              <option value="⭐⭐⭐⭐⭐ 5 Stars">⭐⭐⭐⭐⭐ Excellent (Distance Math is Fair!)</option>
+              <option value="⭐⭐⭐⭐ 4 Stars">⭐⭐⭐⭐ Good Concept</option>
+              <option value="⭐⭐⭐ 3 Stars">⭐⭐⭐ Needs More Routes</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-extrabold text-slate-600 uppercase mb-1">Your Message / Idea</label>
+            <textarea id="feedback-text" rows="3" required maxlength="300" placeholder="Share your experience with distance-based pooling..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-500"></textarea>
+          </div>
+
+          <div class="flex gap-2 pt-1">
+            <button type="button" onclick="clickSound(); closeFeedbackModal();" class="w-1/2 py-2 border rounded-xl text-xs font-bold text-slate-600">Cancel</button>
+            <button type="submit" id="feedback-submit-btn" class="w-1/2 py-2 btn-gradient text-white font-bold rounded-xl text-xs">Submit Feedback</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- 11. 3D CHIBI MASCOT & CAMPUS ASSISTANT (CHIBI VANI) -->
+  <div id="mascot-container" class="hidden fixed bottom-16 md:bottom-6 right-4 z-40 flex flex-col items-end space-y-2">
+    
+    <!-- Chatbot Drawer -->
+    <div id="mascot-chat-panel" class="hidden bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border-2 border-indigo-300 w-80 sm:w-96 overflow-hidden flex flex-col h-[420px] transition-all duration-300">
+      
+      <div id="mascot-chat-header" class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-3 text-white flex justify-between items-center border-b border-indigo-800">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 rounded-full overflow-hidden border border-amber-400">
+            <img id="chatbot-header-img" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" class="w-full h-full object-cover">
+          </div>
+          <div>
+            <h4 id="chatbot-name-title" class="font-extrabold text-xs text-amber-300">RideMate Campus Assistant (Chibi Vani)</h4>
+            <p id="chatbot-status-sub" class="text-[9px] text-indigo-200">Campus Guide • Curfew Alerts • Fair Split Engine</p>
+          </div>
+        </div>
+        <button onclick="toggleMascotChat()" class="text-slate-300 hover:text-white p-1">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div id="mascot-messages-body" class="flex-grow p-3 overflow-y-auto space-y-2.5 custom-scroll bg-slate-50/70 text-xs">
+        <div class="flex items-start gap-2">
+          <img id="chatbot-msg-avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" class="w-6 h-6 rounded-full object-cover flex-shrink-0 mt-0.5 border border-indigo-400">
+          <div class="bg-indigo-100 text-indigo-950 px-3 py-2 rounded-2xl rounded-tl-none leading-relaxed font-medium">
+            Enna pa pathutu iruka? Solo auto poyi budget gaali aaka poriya? Ask me routes, fares, or calculation help! 🙄
+          </div>
+        </div>
+      </div>
+
+      <div class="px-3 py-1.5 bg-slate-100 border-t border-slate-200 flex gap-1.5 overflow-x-auto custom-scroll text-[10px]">
+        <button onclick="sendQuickBotQuery('Gandhipuram, Ukkadam & Madhukkarai calculation explain pannu')" class="px-2.5 py-1 bg-white hover:bg-indigo-50 border border-slate-300 rounded-full font-bold text-slate-700 whitespace-nowrap">🔢 Fare Formula</button>
+        <button onclick="sendQuickBotQuery('Hostel gate timings and bus status enna?')" class="px-2.5 py-1 bg-white hover:bg-indigo-50 border border-slate-300 rounded-full font-bold text-slate-700 whitespace-nowrap">⏰ Curfew Alert</button>
+        <button onclick="sendQuickBotQuery('Kerala Palakkad taxi kedaikuma?')" class="px-2.5 py-1 bg-white hover:bg-indigo-50 border border-slate-300 rounded-full font-bold text-slate-700 whitespace-nowrap">🌴 Kerala Rides</button>
+      </div>
+
+      <form id="bot-input-form" onsubmit="handleBotSendMessage(event)" class="p-2 bg-white border-t border-slate-200 flex gap-1.5">
+        <input type="text" id="bot-text-input" placeholder="Ask Vani anything or complain..." required class="flex-grow px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-500 font-medium">
+        <button type="submit" class="px-3 py-2 btn-gradient text-white font-bold rounded-xl text-xs flex items-center gap-1">
+          <i data-lucide="send" class="w-3.5 h-3.5"></i>
+        </button>
+      </form>
+    </div>
+
+    <!-- Floating 3D Chibi Mascot Trigger -->
+    <div class="flex items-center space-x-2">
+      <div id="mascot-speech-bubble" class="bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-2xl shadow-xl border border-indigo-200 text-xs font-bold text-slate-800 max-w-[210px] mb-1 transition-all duration-300 cursor-pointer" onclick="toggleMascotChat()">
+        <span id="mascot-text">Enna pa? Solo auto poyi kasu waste pannatha! Tap me! 🙄</span>
+      </div>
+
+      <div onclick="clickSound(); toggleMascotChat();" class="cursor-pointer transition transform hover:scale-110 active:scale-95 animate-sassy flex-shrink-0" title="Tap to Chat with Vani!">
+        <div id="doll-character-badge" class="w-16 h-20 bg-slate-900 rounded-2xl p-1 shadow-2xl flex flex-col items-center justify-center border-2 border-indigo-400 overflow-hidden relative">
+          
+          <svg viewBox="0 0 100 130" class="w-full h-full" id="chibi-svg-art">
+            <path d="M 20 40 C 10 70 15 110 30 115 C 20 80 30 50 40 40" fill="#261b17" />
+            <path d="M 80 40 C 90 70 85 110 70 115 C 80 80 70 50 60 40" fill="#261b17" />
+            
+            <path d="M 22 75 C 20 65 35 60 50 60 C 65 60 80 65 78 75 L 82 110 C 80 115 20 115 18 110 Z" fill="#2b2b2e" />
+            <rect x="52" y="82" width="14" height="15" rx="3" fill="#232326" stroke="#3b3b40" stroke-width="1" />
+            <rect x="38" y="112" width="7" height="10" fill="#fcd5b8" />
+            <rect x="55" y="112" width="7" height="10" fill="#fcd5b8" />
+            <rect x="37" y="118" width="9" height="5" fill="#ffffff" />
+            <rect x="54" y="118" width="9" height="5" fill="#ffffff" />
+            <ellipse cx="41" cy="125" rx="7" ry="3.5" fill="#18181b" stroke="#ffffff" stroke-width="1" />
+            <ellipse cx="58" cy="125" rx="7" ry="3.5" fill="#18181b" stroke="#ffffff" stroke-width="1" />
+
+            <circle cx="50" cy="42" r="26" fill="#fde2d0" />
+            <ellipse cx="33" cy="48" rx="4" ry="2.5" fill="#f472b6" opacity="0.5" />
+            <ellipse cx="67" cy="48" rx="4" ry="2.5" fill="#f472b6" opacity="0.5" />
+            
+            <ellipse cx="38" cy="40" rx="6.5" ry="5.5" fill="#ffffff" stroke="#1f2937" stroke-width="1" />
+            <circle cx="35" cy="40" r="3.5" fill="#1e1b4b" id="chibi-eye-left" />
+            <ellipse cx="62" cy="40" rx="6.5" ry="5.5" fill="#ffffff" stroke="#1f2937" stroke-width="1" />
+            <circle cx="59" cy="40" r="3.5" fill="#1e1b4b" id="chibi-eye-right" />
+            
+            <path d="M 24 35 Q 50 15 76 35 Q 65 26 50 28 Q 35 26 24 35" fill="#38261e" />
+            <path d="M 28 35 L 34 46 L 39 35 L 45 47 L 50 35 L 56 47 L 62 35 L 68 46 L 73 35 Z" fill="#38261e" />
+            <path d="M 46 51 Q 50 48 54 51" fill="none" stroke="#9f1239" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOBILE BOTTOM APP BAR -->
+  <nav id="mobile-bottom-bar" class="hidden md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 py-2 flex justify-around items-center z-40 shadow-lg">
+    <button onclick="clickSound(); navigate('explore');" class="flex flex-col items-center text-indigo-600">
+      <i data-lucide="compass" class="w-5 h-5"></i>
+      <span class="text-[10px] font-bold mt-0.5">Explore</span>
+    </button>
+    <button onclick="clickSound(); navigate('create');" class="flex flex-col items-center text-slate-500 hover:text-indigo-600">
+      <i data-lucide="plus-circle" class="w-5 h-5 text-pink-500"></i>
+      <span class="text-[10px] font-bold mt-0.5">Post Ride</span>
+    </button>
+    <button onclick="clickSound(); navigate('my-rides');" class="flex flex-col items-center text-slate-500 hover:text-indigo-600">
+      <i data-lucide="layers" class="w-5 h-5"></i>
+      <span class="text-[10px] font-bold mt-0.5">Bookings</span>
+    </button>
+    <button onclick="clickSound(); navigate('analytics');" class="flex flex-col items-center text-slate-500 hover:text-indigo-600">
+      <i data-lucide="bar-chart-2" class="w-5 h-5"></i>
+      <span class="text-[10px] font-bold mt-0.5">Insights</span>
+    </button>
+    <button onclick="clickSound(); navigate('profile');" class="flex flex-col items-center text-slate-500 hover:text-indigo-600">
+      <i data-lucide="user" class="w-5 h-5"></i>
+      <span class="text-[10px] font-bold mt-0.5">Profile</span>
+    </button>
+  </nav>
+
+  <!-- CLEAN COPYRIGHT FOOTER -->
+  <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500 font-medium">
+    RideMate • Developed by <span class="font-bold text-slate-800">Kalaivani S</span> | B.Tech CSBS Department • All Rights Reserved
+  </footer>
+
+  <!-- SCRIPT ENGINE -->
+  <script type="module">
+    // Firebase Modular SDK v10.8.0 Imports
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { 
+      getFirestore, 
+      collection, 
+      doc, 
+      onSnapshot, 
+      setDoc, 
+      updateDoc, 
+      deleteDoc, 
+      getDoc,
+      getDocs,
+      query,
+      where,
+      runTransaction,
+      serverTimestamp 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { 
+      getAuth, 
+      GoogleAuthProvider, 
+      signInWithPopup, 
+      signInWithEmailAndPassword,
+      createUserWithEmailAndPassword,
+      signOut, 
+      onAuthStateChanged 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    // ==========================================
+    // 1. FIREBASE CONFIG & INITIALIZATION
+    // ==========================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyCAKdncZW-iRUYJCaCyr4QMrlSlDrP5HG8",
+      authDomain: "firemate-org.firebaseapp.com",
+      projectId: "firemate-org",
+      storageBucket: "firemate-org.firebasestorage.app",
+      messagingSenderId: "196946231234",
+      appId: "1:196946231234:web:3ad12af6e7ce4b8845e05b"
+    };
+
+    let app = null;
+    let db = null;
+    let auth = null;
+    let googleProvider = null;
+    let ridesCol = null;
+    let isFirebaseConfigured = false;
+
+    try {
+      if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY") {
+        app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+        googleProvider = new GoogleAuthProvider();
+        ridesCol = collection(db, 'rides');
+        isFirebaseConfigured = true;
+      } else {
+        document.getElementById('offline-status-banner')?.classList.remove('hidden');
+      }
+    } catch (err) {
+      console.warn("Firestore initialization notice (operating in local prototype mode):", err);
+      document.getElementById('offline-status-banner')?.classList.remove('hidden');
+    }
+
+    // ==========================================
+    // 2. CENTRALIZED TRUSTED ROUTES & STOPS
+    // ==========================================
+    const TRUSTED_ROUTES = {
+      "Gandhipuram Central Bus Stand": {
+        origin: "Nehru College Campus Main Gate",
+        destination: "Gandhipuram Central Bus Stand",
+        totalKm: 20,
+        baseFare: 500,
+        stops: [
+          { name: 'Nehru College Campus Gate', km: 0, lat: 10.8872, lng: 76.9048 },
+          { name: 'TM Palayam Pirivu', km: 3, lat: 10.8950, lng: 76.9180 },
+          { name: 'Madhukkarai Market', km: 6, lat: 10.9025, lng: 76.9380 },
+          { name: 'Ukkadam Bus Stand', km: 12, lat: 10.9902, lng: 76.9600 },
+          { name: 'Gandhipuram Central Bus Stand', km: 20, lat: 11.0168, lng: 76.9678 }
+        ]
+      },
+      "Palakkad Junction Railway Stn (Kerala)": {
+        origin: "Nehru College Campus Main Gate",
+        destination: "Palakkad Junction Railway Stn (Kerala)",
+        totalKm: 35,
+        baseFare: 600,
+        stops: [
+          { name: 'Nehru College Campus Gate', km: 0, lat: 10.8872, lng: 76.9048 },
+          { name: 'Walayar Checkpost (Kerala)', km: 10, lat: 10.8350, lng: 76.8450 },
+          { name: 'Kozhinjampara Town', km: 18, lat: 10.7420, lng: 76.8120 },
+          { name: 'Palakkad Junction Railway Stn (Kerala)', km: 35, lat: 10.7867, lng: 76.6548 }
+        ]
+      },
+      "Ukkadam Bus Stand": {
+        origin: "Nehru College Campus Main Gate",
+        destination: "Ukkadam Bus Stand",
+        totalKm: 12,
+        baseFare: 350,
+        stops: [
+          { name: 'Nehru College Campus Gate', km: 0, lat: 10.8872, lng: 76.9048 },
+          { name: 'TM Palayam Pirivu', km: 3, lat: 10.8950, lng: 76.9180 },
+          { name: 'Madhukkarai Market', km: 6, lat: 10.9025, lng: 76.9380 },
+          { name: 'Ukkadam Bus Stand', km: 12, lat: 10.9902, lng: 76.9600 }
+        ]
+      },
+      "Madhukkarai Market": {
+        origin: "Nehru College Campus Main Gate",
+        destination: "Madhukkarai Market",
+        totalKm: 6,
+        baseFare: 200,
+        stops: [
+          { name: 'Nehru College Campus Gate', km: 0, lat: 10.8872, lng: 76.9048 },
+          { name: 'TM Palayam Pirivu', km: 3, lat: 10.8950, lng: 76.9180 },
+          { name: 'Madhukkarai Market', km: 6, lat: 10.9025, lng: 76.9380 }
+        ]
+      },
+      "TM Palayam Pirivu": {
+        origin: "Nehru College Campus Main Gate",
+        destination: "TM Palayam Pirivu",
+        totalKm: 3,
+        baseFare: 70,
+        stops: [
+          { name: 'Nehru College Campus Gate', km: 0, lat: 10.8872, lng: 76.9048 },
+          { name: 'TM Palayam Pirivu', km: 3, lat: 10.8950, lng: 76.9180 }
+        ]
+      },
+      "Walayar Checkpost (Kerala)": {
+        origin: "Nehru College Campus Main Gate",
+        destination: "Walayar Checkpost (Kerala)",
+        totalKm: 10,
+        baseFare: 200,
+        stops: [
+          { name: 'Nehru College Campus Gate', km: 0, lat: 10.8872, lng: 76.9048 },
+          { name: 'Walayar Checkpost (Kerala)', km: 10, lat: 10.8350, lng: 76.8450 }
+        ]
+      }
+    };
+
+    // Baseline fallback rides for new setups
+    const defaultRides = [
+      {
+        id: 'r_100',
+        creatorId: 'std_priya',
+        creatorName: 'Priya R',
+        creatorLiving: 'Priyanka Block (Girls)',
+        creatorAvatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
+        origin: 'Nehru College Campus Main Gate',
+        destination: 'Gandhipuram Central Bus Stand',
+        totalKm: 20,
+        totalFare: 500,
+        vehicle: 'Cab',
+        groupType: 'Girls Only',
+        paymentMode: 'GPay / UPI Accepted',
+        routePolicy: 'Any Stop Allowed',
+        totalSeats: 4,
+        timeFormatted: 'Today, 5:30 PM',
+        note: 'Taking Madhukkarai & Ukkadam route. Madhukkarai pays ₹50, Ukkadam pays ₹125, Gandhipuram pays ₹325!',
+        editHistory: null,
+        intermediateStops: TRUSTED_ROUTES["Gandhipuram Central Bus Stand"].stops,
+        members: [
+          { userId: 'std_priya', name: 'Priya R', living: 'Priyanka Block', dropLocation: 'Gandhipuram Central Bus Stand', distanceKm: 20, avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80' },
+          { userId: 'std_ananya', name: 'Ananya S', living: 'Kamala Block', dropLocation: 'Ukkadam Bus Stand', distanceKm: 12, avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80' },
+          { userId: 'std_kavya', name: 'Kavya M', living: 'Outside Room (TM Palayam)', dropLocation: 'Madhukkarai Market', distanceKm: 6, avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80' }
+        ],
+        messages: [
+          { senderId: 'std_priya', senderName: 'Priya R', text: 'Hey girls! Taxi booked. Kavya drops at Madhukkarai (₹50), Ananya at Ukkadam (₹125), and me at Gandhipuram (₹325). Exact ₹500 split!', time: '4:00 PM' }
+        ]
+      },
+      {
+        id: 'r_101',
+        creatorId: 'std_rahul',
+        creatorName: 'Rahul Nair',
+        creatorLiving: 'Outside Room (TM Palayam)',
+        creatorAvatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
+        origin: 'Nehru College Campus Main Gate',
+        destination: 'Palakkad Junction Railway Stn (Kerala)',
+        totalKm: 35,
+        totalFare: 600,
+        vehicle: 'Cab',
+        groupType: 'Mixed',
+        paymentMode: 'Any Mode (Cash or UPI)',
+        routePolicy: 'Any Stop Allowed',
+        totalSeats: 4,
+        timeFormatted: 'Friday, 4:00 PM',
+        note: 'Catching Kerala Express. Walayar drops pay ₹100, Palakkad pays ₹250.',
+        editHistory: null,
+        intermediateStops: TRUSTED_ROUTES["Palakkad Junction Railway Stn (Kerala)"].stops,
+        members: [
+          { userId: 'std_rahul', name: 'Rahul Nair', living: 'Outside Room', dropLocation: 'Palakkad Junction Railway Stn (Kerala)', distanceKm: 35, avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80' },
+          { userId: 'std_vishnu', name: 'Vishnu K', living: 'APJ Block', dropLocation: 'Walayar Checkpost (Kerala)', distanceKm: 10, avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80' }
+        ],
+        messages: []
+      }
+    ];
+
+    // ==========================================
+    // 3. SECURITY & XSS SANITIZATION
+    // ==========================================
+    function escapeHTML(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // ==========================================
+    // 4. CENTRALIZED SEGMENTED FARE ENGINE
+    // ==========================================
+    function calculateSegmentedSplits(ride) {
+      if (!ride || !ride.members || ride.members.length === 0) return {};
+      const totalFare = Math.max(10, Math.min(3500, Number(ride.totalFare) || 100));
+      const totalKm = Math.max(1, Math.min(100, Number(ride.totalKm) || 20));
+      const members = ride.members;
+
+      if (ride.routePolicy === 'Direct Only') {
+        const equalSplit = Math.round(totalFare / members.length);
+        const shares = {};
+        members.forEach(m => shares[m.userId] = equalSplit);
+        return shares;
+      }
+
+      const ratePerKm = totalFare / totalKm;
+      const sorted = [...members].sort((a, b) => (Number(a.distanceKm) || 0) - (Number(b.distanceKm) || 0));
+      const memberShares = {};
+      members.forEach(m => memberShares[m.userId] = 0);
+
+      let prevKm = 0;
+      for (let i = 0; i < sorted.length; i++) {
+        const currentKm = Math.min(totalKm, Math.max(1, Number(sorted[i].distanceKm) || totalKm));
+        const segmentLength = currentKm - prevKm;
+
+        if (segmentLength > 0) {
+          const segmentFare = segmentLength * ratePerKm;
+          const ridersInSegment = sorted.length - i;
+          const costPerRider = segmentFare / ridersInSegment;
+
+          for (let j = i; j < sorted.length; j++) {
+            memberShares[sorted[j].userId] += costPerRider;
+          }
+          prevKm = currentKm;
+        }
+      }
+
+      let sum = 0;
+      for (let uid in memberShares) {
+        memberShares[uid] = Math.round(memberShares[uid]);
+        sum += memberShares[uid];
+      }
+      const diff = totalFare - sum;
+      if (diff !== 0 && sorted.length > 0) {
+        const lastUid = sorted[sorted.length - 1].userId;
+        memberShares[lastUid] += diff;
+      }
+
+      return memberShares;
+    }
+
+    // ==========================================
+    // 5. APPLICATION STATE
+    // ==========================================
+    let currentUser = null;
+    let isRegisterMode = false;
+    let currentActiveRideId = null;
+    let currentJoiningRide = null;
+    let mapInstance = null;
+    let modalMapInstance = null;
+    let chartsInitialized = false;
+    let isManualAnnabelle = false;
+    let rides = [];
+    let ridesLoadedOnce = false;
+
+    // Relatable Campus Thoughts, Quotes & Kadi Jokes
+    const memeQuotes = [
+      {
+        quote: '"Every journey starts with a single step, but having good companions makes the distance feel like nothing."',
+        sub: '🌟 Life Quote: Travel together, grow together.'
+      },
+      {
+        quote: '"Kadi Joke: Bus-kum Train-kum enna difference? Bus-la ticket ticket nu kepaanga... Train-la ticket-a TT kepaaru! 😂"',
+        sub: '🤦‍♂️ Daily Laugh: Engineering brain at work!'
+      },
+      {
+        quote: '"Time and money are both limited. Save where you can, so you can spend where it truly matters."',
+        sub: '⏳ Wisdom: Small daily savings lead to big freedom.'
+      },
+      {
+        quote: '"Kadi Joke: Car-la petrol illana eppadi odum? ...Push pannina odum! 🚗💨"',
+        sub: '💡 Practical Thinking: Never give up!'
+      },
+      {
+        quote: '"Difficult roads often lead to the most beautiful destinations. Keep moving forward."',
+        sub: '🛣️ Motivation: Trust the journey.'
+      },
+      {
+        quote: '"3-Stop Magic: Madhukkarai (6km) pays ₹50, Ukkadam (12km) pays ₹125, Gandhipuram (20km) pays ₹325 in a ₹500 cab!"',
+        sub: '🌴 100% mathematically fair segmented distance split.'
+      }
+    ];
+    let currentMemeIndex = 0;
+
+    function rotateMemeQuote() {
+      currentMemeIndex = (currentMemeIndex + 1) % memeQuotes.length;
+      document.getElementById('meme-quote').innerText = memeQuotes[currentMemeIndex].quote;
+      document.getElementById('meme-sub').innerText = memeQuotes[currentMemeIndex].sub;
+    }
+
+    // Audio Feedback
+    function clickSound() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.05);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.05);
+      } catch (e) {}
+    }
+
+    function playHelloRideMateSlang() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const notes = [
+          { f: 880, t: 0.0, d: 0.12 },
+          { f: 659.25, t: 0.13, d: 0.12 },
+          { f: 987.77, t: 0.26, d: 0.18 }
+        ];
+        notes.forEach(n => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(n.f, audioCtx.currentTime + n.t);
+          gain.gain.setValueAtTime(0.12, audioCtx.currentTime + n.t);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + n.t + n.d);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(audioCtx.currentTime + n.t);
+          osc.stop(audioCtx.currentTime + n.t + n.d);
+        });
+
+        setTimeout(() => {
+          if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance("Hello RideMate");
+            utterance.rate = 1.05;
+            utterance.pitch = 1.35;
+            utterance.volume = 1.0;
+            utterance.lang = 'en-US';
+            window.speechSynthesis.speak(utterance);
+          }
+        }, 400);
+      } catch (e) {}
+    }
+
+    // ==========================================
+    // 6. REAL-TIME FIRESTORE SYNCHRONIZATION
+    // ==========================================
+    function setupRidesRealtimeSync() {
+      if (!db || !ridesCol) {
+        rides = defaultRides;
+        ridesLoadedOnce = true;
+        refreshCurrentPage();
+        return;
+      }
+
+      try {
+        onSnapshot(ridesCol, (snapshot) => {
+          if (snapshot.empty) {
+            defaultRides.forEach(async (r) => {
+              try {
+                await setDoc(doc(db, 'rides', r.id), r);
+              } catch (e) {
+                console.warn('Seeding notice:', e);
+              }
+            });
+            rides = defaultRides;
+            ridesLoadedOnce = true;
+            refreshCurrentPage();
+            return;
+          }
+
+          const incomingRides = [];
+          snapshot.forEach((docSnap) => {
+            incomingRides.push({ id: docSnap.id, ...docSnap.data() });
+          });
+
+          if (ridesLoadedOnce && currentUser) {
+            const newOnes = incomingRides.filter(r => !rides.some(existing => existing.id === r.id));
+            newOnes.forEach(r => {
+              if (r.creatorId !== currentUser.uid) {
+                showLiveToast(`🚗 New pool posted: ${escapeHTML(r.origin.split(' ')[0])} → ${escapeHTML(r.destination.split(' ')[0])} by ${escapeHTML(r.creatorName)}!`);
+              }
+            });
+          }
+
+          rides = incomingRides;
+          ridesLoadedOnce = true;
+          refreshCurrentPage();
+        }, (err) => {
+          console.error("Firestore onSnapshot error:", err);
+          if (!ridesLoadedOnce) {
+            rides = defaultRides;
+            ridesLoadedOnce = true;
+            refreshCurrentPage();
+          }
+        });
+      } catch (err) {
+        console.error("Firestore sync setup error:", err);
+        rides = defaultRides;
+        ridesLoadedOnce = true;
+        refreshCurrentPage();
+      }
+    }
+
+    function refreshCurrentPage() {
+      if (!currentUser) return;
+      const explorePage = document.getElementById('explore-page');
+      const myRidesPage = document.getElementById('my-rides-page');
+      const chatModal = document.getElementById('chat-modal');
+
+      if (explorePage && !explorePage.classList.contains('hidden')) renderRides();
+      if (myRidesPage && !myRidesPage.classList.contains('hidden')) renderMyRides();
+      if (currentActiveRideId && chatModal && !chatModal.classList.contains('hidden')) {
+        const r = rides.find(x => x.id === currentActiveRideId);
+        if (r) {
+          document.getElementById('modal-sub-info').innerText = `${r.vehicle} • ${r.members.length}/${r.totalSeats} Joined`;
+          document.getElementById('modal-passengers-list').innerHTML = r.members.map(m => `
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-slate-200 text-[10px] text-slate-700 font-semibold">
+              <img src="${escapeHTML(m.avatar)}" class="w-3.5 h-3.5 rounded-full object-cover">
+              <span>${escapeHTML(m.name.split(' ')[0])} (${m.distanceKm}km)</span>
+            </span>
+          `).join('');
+        }
+        renderChatMessages();
+      }
+      lucide.createIcons();
+    }
+
+    function showLiveToast(text) {
+      const toast = document.createElement('div');
+      toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-[200] bg-indigo-950 text-white text-xs font-bold px-4 py-2.5 rounded-2xl shadow-2xl border border-indigo-700 flex items-center gap-2 max-w-[90vw] text-center';
+      toast.innerText = text;
+      document.body.appendChild(toast);
+      setTimeout(() => { toast.style.transition = 'opacity 0.4s'; toast.style.opacity = '0'; }, 3600);
+      setTimeout(() => { toast.remove(); }, 4000);
+    }
+
+    // ==========================================
+    // 7. AUTHENTICATION & SESSION MANAGEMENT
+    // ==========================================
+    function setupAuthListener() {
+      // Check local session store fallback first
+      const localStored = localStorage.getItem('rideMateDistanceUser');
+      if (localStored) {
+        try {
+          currentUser = JSON.parse(localStored);
+        } catch (e) {}
+      }
+
+      if (auth) {
+        onAuthStateChanged(auth, async (user) => {
+          if (user) {
+            let profileData = {
+              uid: user.uid,
+              name: user.displayName || "Student Commuter",
+              email: user.email || "",
+              living: "College Campus (TM Palayam)",
+              phone: "9876543210",
+              bio: "Verified Campus Student Commuter",
+              avatar: user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'Student')}&background=6366f1&color=fff&bold=true&size=150`,
+              verified: true
+            };
+
+            if (db) {
+              try {
+                const userDocSnap = await getDoc(doc(db, 'users', user.uid));
+                if (userDocSnap.exists()) {
+                  profileData = { ...profileData, ...userDocSnap.data(), uid: user.uid };
+                } else {
+                  await setDoc(doc(db, 'users', user.uid), {
+                    ...profileData,
+                    createdAt: serverTimestamp()
+                  });
+                }
+              } catch (err) {
+                console.warn("User profile fetch notice:", err);
+              }
+            }
+
+            currentUser = profileData;
+            localStorage.setItem('rideMateDistanceUser', JSON.stringify(currentUser));
+            onLoginSuccessUI(currentUser.name);
+          } else {
+            if (!currentUser) {
+              document.getElementById('navbar').classList.add('hidden');
+              document.getElementById('mobile-bottom-bar').classList.add('hidden');
+              document.getElementById('mascot-container').classList.add('hidden');
+              showPage('auth-page');
+            }
+          }
+        });
+      } else if (currentUser) {
+        onLoginSuccessUI(currentUser.name);
+      }
+    }
+
+    function onLoginSuccessUI(name) {
+      document.getElementById('navbar').classList.remove('hidden');
+      document.getElementById('mobile-bottom-bar').classList.remove('hidden');
+      document.getElementById('mascot-container').classList.remove('hidden');
+      updateNavProfile();
+      updateMascotLook();
+      navigate('explore');
+      setMascotMood(`Welcome ${name.split(' ')[0]}! Ready to split fares fairly! 🌸`);
+    }
+
+    async function handleGoogleSignIn() {
+      clickSound();
+      const btn = document.getElementById('google-signin-btn');
+      btn.disabled = true;
+
+      if (!auth || !googleProvider) {
+        btn.disabled = false;
+        const mockEmail = prompt("Google Auth Simulation (Live credentials not connected in script):\nEnter student email:", "student.google@gmail.com");
+        if (!mockEmail) return;
+        const mockName = mockEmail.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        completeAuthSuccess({
+          uid: 'std_google_' + Date.now(),
+          displayName: mockName,
+          email: mockEmail,
+          photoURL: `https://ui-avatars.com/api/?name=${encodeURIComponent(mockName)}&background=4285f4&color=fff&bold=true&size=150`
+        });
+        return;
+      }
+
+      try {
+        const result = await signInWithPopup(auth, googleProvider);
+        completeAuthSuccess(result.user);
+      } catch (error) {
+        console.error("Google Sign-In Error:", error);
+        alert(`Google Sign-In error: ${error.message}`);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function completeAuthSuccess(user, defaultLiving = "College Campus (TM Palayam)") {
+      playHelloRideMateSlang();
+      const splash = document.getElementById('splash-screen');
+      const progress = document.getElementById('splash-progress');
+      if (splash && progress) {
+        splash.classList.remove('hidden');
+        setTimeout(() => { progress.style.width = '100%'; }, 50);
+      }
+
+      setTimeout(async () => {
+        if (splash && progress) {
+          splash.classList.add('hidden');
+          progress.style.width = '0%';
+        }
+
+        const name = user.displayName || "Google Student";
+        currentUser = {
+          uid: user.uid || ('std_' + Date.now()),
+          userId: user.uid || ('std_' + Date.now()),
+          name: name,
+          email: user.email || '',
+          living: defaultLiving,
+          avatar: user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=4285f4&color=fff&bold=true&size=150`,
+          phone: user.phoneNumber || "9876543210",
+          bio: "Verified Google Campus Commuter",
+          verified: true
+        };
+
+        if (db && user.uid) {
+          try {
+            await setDoc(doc(db, 'users', user.uid), {
+              uid: user.uid,
+              name: currentUser.name,
+              email: currentUser.email,
+              living: currentUser.living,
+              avatar: currentUser.avatar,
+              phone: currentUser.phone,
+              bio: currentUser.bio,
+              verified: true,
+              updatedAt: serverTimestamp()
+            }, { merge: true });
+          } catch (e) {}
+        }
+
+        localStorage.setItem('rideMateDistanceUser', JSON.stringify(currentUser));
+        onLoginSuccessUI(name);
+      }, 1500);
+    }
+
+    async function triggerSplashLogin(e) {
+      e.preventDefault();
+      clickSound();
+
+      const userInput = document.getElementById('auth-user').value.trim();
+      const pass = document.getElementById('auth-pass').value.trim();
+      const btn = document.getElementById('auth-btn');
+      const btnText = document.getElementById('auth-btn-text');
+
+      if (!userInput || !pass) return;
+
+      btn.disabled = true;
+      btnText.innerText = isRegisterMode ? 'Creating Account...' : 'Signing In...';
+
+      let email = userInput;
+      if (!userInput.includes('@')) {
+        email = `${userInput.toLowerCase().replace(/[^a-z0-9]/g, '')}@campus.ridemate.local`;
+      } else if (isRegisterMode) {
+        const domain = userInput.split('@')[1]?.toLowerCase();
+        const allowedDomains = ['nehrucolleges.com', 'niet.ac.in', 'gmail.com'];
+        if (!allowedDomains.includes(domain)) {
+          alert("Please use your official college email (@nehrucolleges.com or @niet.ac.in) or verified student account.");
+          btn.disabled = false;
+          btnText.innerText = 'Register & Enter';
+          return;
+        }
+      }
+
+      if (auth) {
+        try {
+          if (isRegisterMode) {
+            if (db && !userInput.includes('@')) {
+              try {
+                const q = query(collection(db, 'users'), where('rollNumber', '==', userInput.toUpperCase()));
+                const existingSnap = await getDocs(q);
+                if (!existingSnap.empty) {
+                  throw new Error(`Roll Number ${userInput.toUpperCase()} is already registered by another student. Please sign in.`);
+                }
+              } catch (e) {
+                if (e.message.includes('already registered')) throw e;
+              }
+            }
+
+            const cred = await createUserWithEmailAndPassword(auth, email, pass);
+            const inputName = document.getElementById('auth-name').value.trim() || formatNameFromInput(userInput);
+            const stayType = document.getElementById('auth-stay-type').value;
+            let living = "College Campus (TM Palayam)";
+            if (stayType === 'Hostel') living = document.getElementById('auth-block-select').value;
+            else if (stayType === 'Outside Room') living = document.getElementById('auth-outside-input').value.trim() || 'Outside PG / Rental Room';
+            else living = 'Day Scholar Commuter';
+
+            const newProfile = {
+              uid: cred.user.uid,
+              name: inputName,
+              email: cred.user.email,
+              rollNumber: userInput.toUpperCase(),
+              living: living,
+              avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(inputName)}&background=6366f1&color=fff&bold=true&size=150`,
+              phone: "9876543210",
+              bio: "Campus commuter traveling between college and city hubs.",
+              verified: true,
+              createdAt: serverTimestamp()
+            };
+
+            if (db) {
+              await setDoc(doc(db, 'users', cred.user.uid), newProfile);
+            }
+            currentUser = newProfile;
+          } else {
+            const cred = await signInWithEmailAndPassword(auth, email, pass);
+            let profile = {
+              uid: cred.user.uid,
+              name: formatNameFromInput(userInput),
+              email: cred.user.email,
+              living: "College Campus (TM Palayam)",
+              avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(userInput)}&background=6366f1&color=fff&bold=true&size=150`,
+              phone: "9876543210",
+              bio: "Campus commuter",
+              verified: true
+            };
+            if (db) {
+              const snap = await getDoc(doc(db, 'users', cred.user.uid));
+              if (snap.exists()) profile = { ...profile, ...snap.data(), uid: cred.user.uid };
+            }
+            currentUser = profile;
+          }
+
+          localStorage.setItem('rideMateDistanceUser', JSON.stringify(currentUser));
+          playHelloRideMateSlang();
+          onLoginSuccessUI(currentUser.name);
+        } catch (err) {
+          console.error("Auth error:", err);
+          alert(`Authentication notice: ${err.message || 'Check your credentials.'}`);
+        } finally {
+          btn.disabled = false;
+          btnText.innerText = isRegisterMode ? 'Register & Enter' : 'Sign In to RideMate';
+        }
+      } else {
+        const name = isRegisterMode ? (document.getElementById('auth-name').value.trim() || formatNameFromInput(userInput)) : formatNameFromInput(userInput);
+        currentUser = {
+          uid: 'std_' + userInput.toLowerCase().replace(/[^a-z0-9]/g, ''),
+          userId: 'std_' + userInput.toLowerCase().replace(/[^a-z0-9]/g, ''),
+          name: name,
+          email: email,
+          living: "College Campus (TM Palayam)",
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6366f1&color=fff&bold=true&size=150`,
+          phone: "9876543210",
+          bio: "Campus commuter",
+          verified: true
+        };
+        localStorage.setItem('rideMateDistanceUser', JSON.stringify(currentUser));
+        btn.disabled = false;
+        btnText.innerText = isRegisterMode ? 'Register & Enter' : 'Sign In to RideMate';
+        onLoginSuccessUI(name);
+      }
+    }
+
+    async function logout() {
+      if (auth) {
+        try {
+          await signOut(auth);
+        } catch (e) {}
+      }
+      localStorage.removeItem('rideMateDistanceUser');
+      currentUser = null;
+      document.getElementById('navbar').classList.add('hidden');
+      document.getElementById('mobile-bottom-bar').classList.add('hidden');
+      document.getElementById('mascot-container').classList.add('hidden');
+      showPage('auth-page');
+    }
+
+    function formatNameFromInput(input) {
+      if (!input) return "Student Commuter";
+      if (/^\d+$/.test(input)) return `Student ${input.slice(-4)}`;
+      if (/^[0-9]+[a-zA-Z]+[0-9]+$/i.test(input)) return `Student (${input.toUpperCase()})`;
+      return input
+        .replace(/[._-]+/g, ' ')
+        .split(' ')
+        .filter(Boolean)
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ');
+    }
+
+    function toggleStayOptions() {
+      const stayType = document.getElementById('auth-stay-type').value;
+      const blockSelect = document.getElementById('auth-block-select');
+      const outsideInput = document.getElementById('auth-outside-input');
+
+      if (stayType === 'Hostel') {
+        blockSelect.classList.remove('hidden');
+        outsideInput.classList.add('hidden');
+      } else {
+        blockSelect.classList.add('hidden');
+        outsideInput.classList.remove('hidden');
+      }
+    }
+
+    function toggleAuthMode() {
+      isRegisterMode = !isRegisterMode;
+      document.getElementById('auth-title').innerText = isRegisterMode ? 'Student Registration' : 'Student Sign In';
+      document.getElementById('auth-btn-text').innerText = isRegisterMode ? 'Register & Enter' : 'Sign In to RideMate';
+      document.getElementById('signup-fields').classList.toggle('hidden', !isRegisterMode);
+      document.getElementById('auth-toggle-text').innerHTML = isRegisterMode 
+        ? `Already registered? <button type="button" onclick="clickSound(); toggleAuthMode();" class="text-indigo-600 font-bold hover:underline">Sign In here</button>`
+        : `New hosteler? <button type="button" onclick="clickSound(); toggleAuthMode();" class="text-indigo-600 font-bold hover:underline">Create Account</button>`;
+    }
+
+    // ==========================================
+    // 8. RIDE CREATION (WITH TRUSTED ROUTES)
+    // ==========================================
+    async function handleCreateRide(e) {
+      e.preventDefault();
+      clickSound();
+      if (!currentUser) return;
+
+      const btn = document.getElementById('create-submit-btn');
+      btn.disabled = true;
+      btn.innerHTML = `<span>Posting...</span>`;
+
+      try {
+        const origin = document.getElementById('ride-origin').value;
+        const destination = document.getElementById('ride-dest').value;
+        const rawTime = document.getElementById('ride-time').value;
+        const vehicle = document.getElementById('ride-vehicle').value;
+        const groupType = document.getElementById('ride-group-type').value;
+        const routePolicy = document.getElementById('ride-route-policy').value;
+        const paymentMode = document.getElementById('ride-payment-mode').value;
+        const totalFare = Math.max(10, Math.min(3500, Number(document.getElementById('ride-fare').value) || 500));
+        const totalSeats = Math.max(1, Math.min(6, Number(document.getElementById('ride-seats').value) || 4));
+        const note = escapeHTML(document.getElementById('ride-note').value.trim());
+
+        const trusted = TRUSTED_ROUTES[destination] || {
+          totalKm: 20,
+          stops: [
+            { name: 'Nehru College Campus Gate', km: 0, lat: 10.8872, lng: 76.9048 },
+            { name: destination, km: 20, lat: 11.0168, lng: 76.9678 }
+          ]
+        };
+
+        const totalKm = trusted.totalKm;
+        const intermediateStops = trusted.stops;
+
+        const dateObj = new Date(rawTime);
+        const formatted = dateObj.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+        const newRide = {
+          id: 'r_' + Date.now(),
+          creatorId: currentUser.uid || currentUser.userId,
+          creatorName: currentUser.name,
+          creatorLiving: currentUser.living,
+          creatorAvatar: currentUser.avatar,
+          origin,
+          destination,
+          totalKm,
+          totalFare,
+          vehicle,
+          groupType,
+          routePolicy,
+          paymentMode,
+          totalSeats,
+          timeFormatted: formatted,
+          note,
+          editHistory: null,
+          intermediateStops,
+          currentPassengers: 1,
+          members: [{
+            userId: currentUser.uid || currentUser.userId,
+            name: currentUser.name,
+            living: currentUser.living,
+            dropLocation: destination,
+            distanceKm: totalKm,
+            avatar: currentUser.avatar
+          }],
+          messages: [{
+            senderId: currentUser.uid || currentUser.userId,
+            senderName: currentUser.name,
+            text: `Hey guys! I posted this ${vehicle} pool to ${destination}. Mode: ${paymentMode}!`,
+            time: 'Just now'
+          }],
+          createdAt: serverTimestamp ? serverTimestamp() : new Date().toISOString()
+        };
+
+        if (db) {
+          await setDoc(doc(db, 'rides', newRide.id), newRide);
+        } else {
+          rides.unshift(newRide);
+          renderRides();
+        }
+
+        document.getElementById('create-ride-form').reset();
+        if (typeof confetti === 'function') {
+          confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+        }
+
+        setMascotMood("🎉 Pool Created! Vani enabled live tracking! 🚗✨");
+        navigate('explore');
+      } catch (err) {
+        console.error("Create Ride Error:", err);
+        alert(`Could not create ride: ${err.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>Post Ride</span>`;
+      }
+    }
+
+    // ==========================================
+    // 9. ATOMIC TRANSACTIONAL JOIN
+    // ==========================================
+    async function executeJoinTransaction(rideId, dropLocation, distanceKm) {
+      if (!currentUser) throw new Error("Please sign in to join a ride.");
+
+      const myUid = currentUser.uid || currentUser.userId;
+
+      if (db) {
+        const rideRef = doc(db, 'rides', rideId);
+        return await runTransaction(db, async (transaction) => {
+          const rideDoc = await transaction.get(rideRef);
+          if (!rideDoc.exists()) {
+            throw new Error("Sorry, this ride pool no longer exists.");
+          }
+
+          const rideData = rideDoc.data();
+          const existingMembers = rideData.members || [];
+
+          if (existingMembers.length >= rideData.totalSeats) {
+            throw new Error("Sorry, this ride was just filled by another student!");
+          }
+
+          if (existingMembers.some(m => m.userId === myUid)) {
+            throw new Error("You have already booked a seat in this ride pool.");
+          }
+
+          let validKm = distanceKm;
+          const stops = rideData.intermediateStops || [];
+          const matchedStop = stops.find(s => s.name === dropLocation);
+          if (matchedStop) validKm = matchedStop.km;
+          else if (dropLocation === rideData.destination) validKm = rideData.totalKm;
+
+          const newMember = {
+            userId: myUid,
+            name: currentUser.name,
+            living: currentUser.living || "Campus Student",
+            dropLocation: dropLocation || rideData.destination,
+            distanceKm: validKm,
+            avatar: currentUser.avatar
+          };
+
+          const updatedMembers = [...existingMembers, newMember];
+          const updatedRideForMath = { ...rideData, members: updatedMembers };
+          const splits = calculateSegmentedSplits(updatedRideForMath);
+          const myShare = splits[myUid] || Math.round(rideData.totalFare / updatedMembers.length);
+
+          const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const updatedMessages = [
+            ...(rideData.messages || []),
+            {
+              senderId: 'system',
+              senderName: 'System',
+              text: `${escapeHTML(currentUser.name)} joined for ${escapeHTML(dropLocation)} (${validKm}km)! Calculated share: ₹${myShare}.`,
+              time: timeNow
+            }
+          ];
+
+          transaction.update(rideRef, {
+            members: updatedMembers,
+            messages: updatedMessages,
+            currentPassengers: updatedMembers.length,
+            updatedAt: serverTimestamp()
+          });
+
+          const memberSubRef = doc(db, 'rides', rideId, 'members', myUid);
+          transaction.set(memberSubRef, newMember);
+
+          return { share: myShare, destination: dropLocation };
+        });
+      } else {
+        const ride = rides.find(r => r.id === rideId);
+        if (!ride) throw new Error("Ride not found.");
+        if (ride.members.some(m => m.userId === myUid)) throw new Error("Already booked!");
+        if (ride.members.length >= ride.totalSeats) throw new Error("Ride is full!");
+
+        ride.members.push({
+          userId: myUid,
+          name: currentUser.name,
+          living: currentUser.living,
+          dropLocation: dropLocation || ride.destination,
+          distanceKm: distanceKm || ride.totalKm,
+          avatar: currentUser.avatar
+        });
+        const splits = calculateSegmentedSplits(ride);
+        renderRides();
+        return { share: splits[myUid], destination: dropLocation };
+      }
+    }
+
+    async function directJoinRide(rideId) {
+      if (!currentUser) return;
+      try {
+        const ride = rides.find(r => r.id === rideId);
+        if (!ride) return;
+        const res = await executeJoinTransaction(rideId, ride.destination, ride.totalKm);
+        setMascotMood(`Joined ${res.destination}! Equal share: ₹${res.share}/head! 🚗✨`);
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    function openJoinModal(rideId) {
+      currentJoiningRide = rides.find(r => r.id === rideId);
+      if (!currentJoiningRide) return;
+
+      document.getElementById('join-target-ride-id').value = rideId;
+      const stopSelect = document.getElementById('join-stop-select');
+
+      const stops = currentJoiningRide.intermediateStops || [
+        { name: 'Nehru College Campus Gate', km: 0, lat: 10.8872, lng: 76.9048 },
+        { name: 'Madhukkarai Market', km: 6, lat: 10.9025, lng: 76.9380 },
+        { name: 'Ukkadam Bus Stand', km: 12, lat: 10.9902, lng: 76.9600 },
+        { name: currentJoiningRide.destination, km: currentJoiningRide.totalKm, lat: 11.0168, lng: 76.9678 }
+      ];
+
+      stopSelect.innerHTML = stops.filter(s => s.km > 0).map(s => `
+        <option value="${escapeHTML(s.name)}" data-km="${s.km}">${escapeHTML(s.name)} (${s.km} km)</option>
+      `).join('');
+
+      calculateDropPreview();
+      document.getElementById('join-drop-modal').classList.remove('hidden');
+
+      setTimeout(() => {
+        if (modalMapInstance) modalMapInstance.remove();
+        modalMapInstance = L.map('ride-modal-map', { scrollWheelZoom: false }).setView([10.9500, 76.9350], 11);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(modalMapInstance);
+
+        const latlngs = [];
+        stops.forEach(s => {
+          if (s.lat && s.lng) {
+            latlngs.push([s.lat, s.lng]);
+            const marker = L.circleMarker([s.lat, s.lng], {
+              radius: 7,
+              fillColor: s.km === currentJoiningRide.totalKm ? "#ec4899" : "#6366f1",
+              color: "#ffffff",
+              weight: 2,
+              fillOpacity: 0.9
+            }).addTo(modalMapInstance);
+            marker.bindPopup(`<b>${escapeHTML(s.name)}</b><br>${s.km} km from college`);
+          }
+        });
+
+        if (latlngs.length > 1) {
+          L.polyline(latlngs, { color: '#6366f1', weight: 4, dashArray: '6, 8' }).addTo(modalMapInstance);
+          modalMapInstance.fitBounds(latlngs, { padding: [20, 20] });
+        }
+      }, 250);
+    }
+
+    function closeJoinModal() {
+      document.getElementById('join-drop-modal').classList.add('hidden');
+      currentJoiningRide = null;
+    }
+
+    function calculateDropPreview() {
+      if (!currentJoiningRide) return;
+      const stopSelect = document.getElementById('join-stop-select');
+      const selected = stopSelect.options[stopSelect.selectedIndex];
+      const km = Number(selected?.getAttribute('data-km')) || currentJoiningRide.totalKm;
+
+      const tempRide = JSON.parse(JSON.stringify(currentJoiningRide));
+      tempRide.members.push({ userId: 'preview_user', distanceKm: km });
+      const splits = calculateSegmentedSplits(tempRide);
+
+      document.getElementById('join-km-preview').innerText = `${km} km`;
+      document.getElementById('join-fare-preview').innerText = `₹${splits['preview_user'] || 50}`;
+    }
+
+    async function handleConfirmJoin(e) {
+      e.preventDefault();
+      clickSound();
+      const btn = document.getElementById('confirm-join-btn');
+      btn.disabled = true;
+
+      try {
+        const rideId = document.getElementById('join-target-ride-id').value;
+        const stopSelect = document.getElementById('join-stop-select');
+        const selected = stopSelect.options[stopSelect.selectedIndex];
+        const dropLocation = selected.value;
+        const distanceKm = Number(selected.getAttribute('data-km'));
+
+        const res = await executeJoinTransaction(rideId, dropLocation, distanceKm);
+        closeJoinModal();
+        setMascotMood(`Yay! Joined for ${res.destination}! Calculated fair share: ₹${res.share}! 🎉`);
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // ==========================================
+    // 10. ATOMIC LEAVE & CANCELLATION
+    // ==========================================
+    async function leaveRide(rideId) {
+      if (!currentUser) return;
+      if (!confirm("Are you sure you want to leave this ride pool?")) return;
+
+      const myUid = currentUser.uid || currentUser.userId;
+
+      if (db) {
+        try {
+          const rideRef = doc(db, 'rides', rideId);
+          await runTransaction(db, async (transaction) => {
+            const rideDoc = await transaction.get(rideRef);
+            if (!rideDoc.exists()) return;
+            const rideData = rideDoc.data();
+            const updatedMembers = (rideData.members || []).filter(m => m.userId !== myUid);
+            const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const updatedMessages = [
+              ...(rideData.messages || []),
+              {
+                senderId: 'system',
+                senderName: 'System',
+                text: `${escapeHTML(currentUser.name)} left the pool. Remaining fares recalculated!`,
+                time: timeNow
+              }
+            ];
+            transaction.update(rideRef, {
+              members: updatedMembers,
+              messages: updatedMessages,
+              currentPassengers: updatedMembers.length,
+              updatedAt: serverTimestamp()
+            });
+
+            const memberSubRef = doc(db, 'rides', rideId, 'members', myUid);
+            transaction.delete(memberSubRef);
+          });
+          setMascotMood("Left the pool. Vani recalculated fares for others! 🚗");
+        } catch (err) {
+          alert(`Error leaving ride: ${err.message}`);
+        }
+      } else {
+        const ride = rides.find(r => r.id === rideId);
+        if (ride) {
+          ride.members = ride.members.filter(m => m.userId !== myUid);
+          renderRides();
+          setMascotMood("Left the pool! 🚗");
+        }
+      }
+    }
+
+    async function deleteRide(rideId) {
+      if (!currentUser) return;
+      const ride = rides.find(r => r.id === rideId);
+      const myUid = currentUser.uid || currentUser.userId;
+      if (ride && ride.creatorId !== myUid) {
+        alert("Permission Denied: Only the ride creator can delete this pool.");
+        return;
+      }
+
+      if (!confirm("Are you sure you want to cancel and delete this ride pool?")) return;
+
+      closeEditModal();
+      if (db) {
+        try {
+          await deleteDoc(doc(db, 'rides', rideId));
+        } catch (err) {
+          console.error("Delete error:", err);
+          alert(`Delete error: ${err.message}`);
+        }
+      } else {
+        rides = rides.filter(r => r.id !== rideId);
+        refreshCurrentPage();
+      }
+      setMascotMood("Ride pool deleted! 🗑️");
+    }
+
+    function openEditModal(rideId) {
+      const ride = rides.find(r => r.id === rideId);
+      if (!ride) return;
+      const myUid = currentUser ? (currentUser.uid || currentUser.userId) : null;
+      if (ride.creatorId !== myUid) {
+        alert("Permission Denied: Only the creator can edit this pool.");
+        return;
+      }
+
+      document.getElementById('edit-ride-id').value = ride.id;
+      document.getElementById('edit-ride-fare').value = ride.totalFare;
+      document.getElementById('edit-ride-note').value = ride.note || '';
+      document.getElementById('edit-ride-payment').value = ride.paymentMode || 'GPay / UPI Accepted';
+      document.getElementById('edit-ride-policy').value = ride.routePolicy || 'Any Stop Allowed';
+      document.getElementById('edit-ride-modal').classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+      document.getElementById('edit-ride-modal').classList.add('hidden');
+    }
+
+    async function handleSaveEditedRide(e) {
+      e.preventDefault();
+      clickSound();
+      const rideId = document.getElementById('edit-ride-id').value;
+      const newFare = Math.max(10, Math.min(3500, Number(document.getElementById('edit-ride-fare').value) || 500));
+      const newNote = escapeHTML(document.getElementById('edit-ride-note').value.trim());
+      const newPayment = document.getElementById('edit-ride-payment').value;
+      const newPolicy = document.getElementById('edit-ride-policy').value;
+      const rawTime = document.getElementById('edit-ride-time').value;
+
+      const ride = rides.find(r => r.id === rideId);
+      const myUid = currentUser ? (currentUser.uid || currentUser.userId) : null;
+      if (!ride || ride.creatorId !== myUid) {
+        alert("Permission Denied.");
+        return;
+      }
+
+      let formattedTime = ride.timeFormatted;
+      if (rawTime) {
+        formattedTime = new Date(rawTime).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      }
+      const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const editHistory = `Edited at ${timeNow} (Fare: ₹${newFare})`;
+
+      closeEditModal();
+
+      if (db) {
+        try {
+          await updateDoc(doc(db, 'rides', rideId), {
+            totalFare: newFare,
+            note: newNote,
+            paymentMode: newPayment,
+            routePolicy: newPolicy,
+            timeFormatted: formattedTime,
+            editHistory: editHistory,
+            updatedAt: serverTimestamp()
+          });
+        } catch (err) {
+          console.error("Edit updateDoc error:", err);
+          alert(`Error saving edit: ${err.message}`);
+        }
+      } else {
+        ride.totalFare = newFare;
+        ride.note = newNote;
+        ride.paymentMode = newPayment;
+        ride.routePolicy = newPolicy;
+        ride.timeFormatted = formattedTime;
+        ride.editHistory = editHistory;
+        refreshCurrentPage();
+      }
+      setMascotMood(`Pool updated at ${timeNow}! Co-passengers notified! ⏰`);
+    }
+
+    // ==========================================
+    // 11. RIDE CARDS & BOOKINGS RENDERING
+    // ==========================================
+    function renderRides() {
+      const searchInput = document.getElementById('search-dest');
+      const search = searchInput ? searchInput.value.toLowerCase() : '';
+      const filterType = document.getElementById('filter-type')?.value || 'All';
+      const filterGender = document.getElementById('filter-gender')?.value || 'All';
+      const container = document.getElementById('rides-container');
+      if (!container) return;
+
+      const myUid = currentUser ? (currentUser.uid || currentUser.userId) : null;
+
+      const filtered = rides.filter(r => {
+        const matchSearch = r.destination.toLowerCase().includes(search) || r.origin.toLowerCase().includes(search) || (r.creatorLiving && r.creatorLiving.toLowerCase().includes(search));
+        const matchType = filterType === 'All' || r.vehicle === filterType;
+        const matchGender = filterGender === 'All' || r.groupType === filterGender;
+        return matchSearch && matchType && matchGender;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full text-center py-12 bg-white rounded-3xl border border-slate-200">
+            <i data-lucide="map-pin-off" class="w-8 h-8 text-indigo-400 mx-auto mb-2 opacity-70"></i>
+            <p class="text-slate-700 font-bold text-sm">No active ride pools found matching this filter.</p>
+            <p class="text-xs text-slate-500 mt-0.5">Post an auto or cab pool for this corridor!</p>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      container.innerHTML = filtered.map(ride => {
+        const joined = ride.members ? ride.members.length : 0;
+        const left = Math.max(0, ride.totalSeats - joined);
+        const splits = calculateSegmentedSplits(ride);
+        const isJoined = myUid && ride.members && ride.members.some(m => m.userId === myUid);
+        const isCreator = myUid && ride.creatorId === myUid;
+        const isDirect = ride.routePolicy === 'Direct Only';
+        const livingSet = new Set((ride.members || []).map(m => m.living));
+        const isMixedLiving = livingSet.size > 1;
+
+        return `
+          <div class="clean-card rounded-3xl p-5 flex flex-col justify-between">
+            <div>
+              <!-- Top Row Badges -->
+              <div class="flex justify-between items-center mb-3">
+                <div class="flex flex-wrap gap-1.5">
+                  <span class="px-2 py-0.5 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold rounded-lg flex items-center gap-1">
+                    <i data-lucide="${ride.vehicle === 'Auto' ? 'truck' : 'car'}" class="w-3 h-3 text-indigo-600"></i> ${escapeHTML(ride.vehicle)}
+                  </span>
+                  <span class="px-2 py-0.5 ${isDirect ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-blue-50 text-blue-800 border border-blue-200'} text-[10px] font-bold rounded-lg">
+                    ${isDirect ? '🎯 Direct Final Stop' : '📍 Route Drops Allowed'}
+                  </span>
+                  <span class="px-2 py-0.5 ${isMixedLiving ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-purple-50 text-purple-700 border border-purple-200'} text-[10px] font-bold rounded-lg">
+                    ${isMixedLiving ? '👥 Hostel + PG Mix' : '🏢 Block Pool'}
+                  </span>
+                </div>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-lg ${left > 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}">
+                  ${left > 0 ? `${left} Left` : 'Full'}
+                </span>
+              </div>
+
+              <!-- Creator Info -->
+              <div class="flex items-center justify-between mb-3 bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+                <div class="flex items-center gap-2.5 overflow-hidden">
+                  <img src="${escapeHTML(ride.creatorAvatar)}" class="w-8 h-8 rounded-full object-cover border border-indigo-300 flex-shrink-0" alt="Host">
+                  <div class="overflow-hidden">
+                    <div class="text-xs font-bold text-slate-900 truncate">${escapeHTML(ride.creatorName)}</div>
+                    <div class="text-[10px] font-medium text-slate-500 truncate">${escapeHTML(ride.creatorLiving)}</div>
+                  </div>
+                </div>
+                <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 whitespace-nowrap">
+                  ${escapeHTML(ride.paymentMode || '📱 GPay / UPI')}
+                </span>
+              </div>
+
+              <!-- Route Specs -->
+              <div class="space-y-1 mb-3 bg-slate-50/70 p-3 rounded-2xl border border-slate-200/60 text-xs">
+                <div class="text-slate-600 flex items-center gap-1.5">
+                  <i data-lucide="circle-dot" class="w-3.5 h-3.5 text-indigo-500 flex-shrink-0"></i>
+                  <span class="truncate">${escapeHTML(ride.origin)}</span>
+                </div>
+                <div class="font-extrabold text-slate-900 text-sm flex items-center justify-between">
+                  <span class="flex items-center gap-1.5 truncate">
+                    <i data-lucide="map-pin" class="w-4 h-4 text-pink-600 flex-shrink-0"></i>
+                    ${escapeHTML(ride.destination)}
+                  </span>
+                  <span class="text-[10px] font-bold bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full flex-shrink-0">${ride.totalKm} km</span>
+                </div>
+                <div class="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1 border-t border-slate-200">
+                  <i data-lucide="clock" class="w-3 h-3 text-slate-400"></i> ${escapeHTML(ride.timeFormatted)}
+                </div>
+              </div>
+
+              ${ride.note ? `<p class="text-[11px] text-slate-600 italic mb-3">"${escapeHTML(ride.note)}"</p>` : ''}
+
+              <!-- Distance-Split Passengers Table Breakdown -->
+              <div class="bg-gradient-to-r from-indigo-50 to-purple-50 p-3 rounded-2xl border border-indigo-100 mb-3 space-y-1.5">
+                <div class="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600 flex justify-between">
+                  <span>Passenger (Drop Point)</span>
+                  <span>Fare Share</span>
+                </div>
+                <div class="space-y-1.5">
+                  ${(ride.members || []).map(m => `
+                    <div class="flex justify-between items-center text-xs bg-white/70 p-1.5 rounded-xl">
+                      <div class="truncate max-w-[190px]">
+                        <span class="font-bold text-slate-800">${escapeHTML(m.name.split(' ')[0])}</span>
+                        <span class="text-[10px] text-indigo-600 ml-1">📍 ${escapeHTML(m.dropLocation.split(' ')[0])} (${m.distanceKm}km)</span>
+                        <div class="text-[9px] text-slate-500 truncate">${escapeHTML(m.living)}</div>
+                      </div>
+                      <span class="font-black text-sm text-indigo-950">₹${splits[m.userId] || Math.round(ride.totalFare / joined)}</span>
+                    </div>
+                  `).join('')}
+                </div>
+                <div class="border-t border-indigo-200 pt-1 flex justify-between text-[11px] font-bold text-slate-600">
+                  <span>Total Vehicle Fare:</span>
+                  <span>₹${ride.totalFare}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="space-y-2">
+              <div class="grid grid-cols-2 gap-2">
+                <button onclick="clickSound(); openChatModal('${ride.id}');" class="py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1">
+                  <i data-lucide="message-square" class="w-3.5 h-3.5"></i> Chat (${(ride.messages || []).length})
+                </button>
+
+                ${isJoined 
+                  ? `<button onclick="clickSound(); leaveRide('${ride.id}');" class="py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-bold transition">Leave</button>`
+                  : left > 0 
+                    ? isDirect 
+                      ? `<button onclick="clickSound(); directJoinRide('${ride.id}');" class="py-2 btn-gradient text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 shadow-sm">
+                           <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> Equal Join (₹${Math.round(ride.totalFare / (joined + 1))})
+                         </button>`
+                      : `<button onclick="clickSound(); openJoinModal('${ride.id}');" class="py-2 btn-gradient text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 shadow-sm">
+                           <i data-lucide="map" class="w-3.5 h-3.5"></i> Drop & Join
+                         </button>`
+                    : `<button disabled class="py-2 bg-slate-100 text-slate-400 rounded-xl text-xs font-bold cursor-not-allowed">Full</button>`
+                }
+              </div>
+
+              ${isCreator ? `
+                <button onclick="clickSound(); openEditModal('${ride.id}');" class="w-full py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-xl text-[11px] font-bold border border-amber-200 transition flex items-center justify-center gap-1">
+                  <i data-lucide="edit-3" class="w-3 h-3 text-amber-600"></i> Edit Time / Fare / Route Policy
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    function renderMyRides() {
+      const container = document.getElementById('my-rides-container');
+      if (!container) return;
+      const myUid = currentUser ? (currentUser.uid || currentUser.userId) : null;
+      const myPools = myUid ? rides.filter(r => r.members && r.members.some(m => m.userId === myUid)) : [];
+
+      if (myPools.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full py-12 text-center bg-white rounded-3xl border border-slate-200">
+            <i data-lucide="car" class="w-8 h-8 text-indigo-400 mx-auto mb-2 opacity-60"></i>
+            <p class="text-slate-700 font-bold text-sm">You have not joined or posted any travel pools yet.</p>
+            <button type="button" onclick="clickSound(); navigate('explore');" class="mt-2.5 px-4 py-2 btn-gradient text-white text-xs font-bold rounded-xl shadow-sm">Explore Rides</button>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      container.innerHTML = myPools.map(ride => {
+        const isCreator = myUid && ride.creatorId === myUid;
+        const splits = calculateSegmentedSplits(ride);
+        const mySplit = splits[myUid] || 100;
+        const myData = ride.members.find(m => m.userId === myUid);
+
+        return `
+          <div class="clean-card p-5 rounded-3xl flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-lg">${escapeHTML(ride.vehicle)}</span>
+                <span class="text-xs text-slate-500 font-medium"><i data-lucide="clock" class="inline w-3 h-3"></i> ${escapeHTML(ride.timeFormatted)}</span>
+              </div>
+              <h3 class="font-bold text-slate-900 text-base">${escapeHTML(ride.origin)} → ${escapeHTML(ride.destination)}</h3>
+              
+              <div class="mt-3 p-3 bg-slate-50 rounded-2xl flex justify-between items-center border border-slate-100">
+                <div>
+                  <span class="text-[10px] text-slate-500 font-extrabold uppercase">Your Distance Share</span>
+                  <div class="text-lg font-black text-emerald-600">₹${mySplit} <span class="text-[10px] text-slate-500">(${myData ? myData.distanceKm : 20}km)</span></div>
+                </div>
+                <div class="text-right">
+                  <span class="text-[10px] text-slate-500 font-extrabold uppercase">Total Co-passengers</span>
+                  <div class="text-xs font-bold text-slate-800">${ride.members.length} student(s)</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-3 flex gap-2">
+              <button onclick="clickSound(); openChatModal('${ride.id}');" class="flex-grow py-2 btn-gradient text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm">
+                <i data-lucide="message-square" class="w-3.5 h-3.5"></i> Chat (${(ride.messages || []).length})
+              </button>
+              ${isCreator ? `
+                <button onclick="clickSound(); openEditModal('${ride.id}');" class="px-3 py-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-bold hover:bg-amber-100">
+                  <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    // ==========================================
+    // 12. CHATROOM & MESSAGE HANDLING
+    // ==========================================
+    function openChatModal(rideId) {
+      currentActiveRideId = rideId;
+      const ride = rides.find(r => r.id === rideId);
+      if (!ride) return;
+
+      const myUid = currentUser ? (currentUser.uid || currentUser.userId) : null;
+      const isMember = myUid && ride.members && ride.members.some(m => m.userId === myUid);
+      if (!isMember) {
+        alert("Chat Access Restricted: Only confirmed passengers of this ride pool can open the group chat.");
+        return;
+      }
+
+      document.getElementById('modal-route-title').innerText = `${ride.origin} → ${ride.destination}`;
+      document.getElementById('modal-sub-info').innerText = `${ride.vehicle} • ${ride.members.length}/${ride.totalSeats} Joined`;
+
+      document.getElementById('modal-passengers-list').innerHTML = (ride.members || []).map(m => `
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-slate-200 text-[10px] text-slate-700 font-semibold">
+          <img src="${escapeHTML(m.avatar)}" class="w-3.5 h-3.5 rounded-full object-cover">
+          <span>${escapeHTML(m.name.split(' ')[0])} (${m.distanceKm}km)</span>
+        </span>
+      `).join('');
+
+      renderChatMessages();
+      document.getElementById('chat-modal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeChatModal() {
+      document.getElementById('chat-modal').classList.add('hidden');
+      currentActiveRideId = null;
+    }
+
+    function renderChatMessages() {
+      const ride = rides.find(r => r.id === currentActiveRideId);
+      const container = document.getElementById('modal-chat-body');
+      if (!ride || !container) return;
+
+      const myUid = currentUser ? (currentUser.uid || currentUser.userId) : null;
+
+      container.innerHTML = (ride.messages || []).map(msg => {
+        if (msg.senderId === 'system') {
+          return `
+            <div class="text-center my-1">
+              <span class="px-2.5 py-0.5 bg-slate-100 border border-slate-200 text-[10px] text-slate-600 rounded-full font-medium">${escapeHTML(msg.text)}</span>
+            </div>
+          `;
+        }
+
+        const isMe = myUid && msg.senderId === myUid;
+        return `
+          <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'}">
+            <span class="text-[9px] text-slate-400 mb-0.5 px-1">${isMe ? 'You' : escapeHTML(msg.senderName)} • ${escapeHTML(msg.time)}</span>
+            <div class="px-3 py-1.5 rounded-2xl max-w-xs sm:max-w-md text-xs ${isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none shadow-sm'}">
+              ${escapeHTML(msg.text)}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.scrollTop = container.scrollHeight;
+    }
+
+    async function handleSendMessage(e) {
+      e.preventDefault();
+      clickSound();
+      if (!currentUser || !currentActiveRideId) return;
+
+      const input = document.getElementById('chat-text-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const ride = rides.find(r => r.id === currentActiveRideId);
+      const myUid = currentUser.uid || currentUser.userId;
+
+      if (ride) {
+        const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const newMsg = {
+          senderId: myUid,
+          senderName: currentUser.name,
+          text: text,
+          time: timeNow
+        };
+
+        input.value = '';
+
+        if (db) {
+          try {
+            const updatedMessages = [...(ride.messages || []), newMsg];
+            await updateDoc(doc(db, 'rides', currentActiveRideId), {
+              messages: updatedMessages,
+              updatedAt: serverTimestamp()
+            });
+
+            const msgSubRef = doc(collection(db, 'rides', currentActiveRideId, 'messages'));
+            await setDoc(msgSubRef, {
+              ...newMsg,
+              createdAt: serverTimestamp()
+            });
+          } catch (err) {
+            console.error("Chat message error:", err);
+          }
+        } else {
+          ride.messages = ride.messages || [];
+          ride.messages.push(newMsg);
+          renderChatMessages();
+        }
+      }
+    }
+
+    // ==========================================
+    // 13. FEEDBACK SUBMISSION
+    // ==========================================
+    function openFeedbackModal() { document.getElementById('feedback-modal').classList.remove('hidden'); }
+    function closeFeedbackModal() { document.getElementById('feedback-modal').classList.add('hidden'); }
+
+    async function handleSendFeedback(e) {
+      e.preventDefault();
+      clickSound();
+      const cat = document.getElementById('feedback-category').value;
+      const rat = document.getElementById('feedback-rating').value;
+      const msg = document.getElementById('feedback-text').value.trim();
+
+      const feedbackData = {
+        userId: currentUser ? (currentUser.uid || currentUser.userId) : 'guest',
+        userName: currentUser ? currentUser.name : 'Anonymous Student',
+        category: cat,
+        rating: rat,
+        message: escapeHTML(msg),
+        createdAt: serverTimestamp ? serverTimestamp() : new Date().toISOString()
+      };
+
+      if (db) {
+        try {
+          await setDoc(doc(collection(db, 'feedback')), feedbackData);
+        } catch (e) {
+          console.warn("Feedback save note:", e);
+        }
+      }
+
+      setMascotMood("Feedback recorded! Vani says thanks! ⭐");
+      document.getElementById('feedback-form').reset();
+      closeFeedbackModal();
+    }
+
+    // ==========================================
+    // 14. PROFILE MANAGEMENT
+    // ==========================================
+    function loadProfileForm() {
+      if (!currentUser) return;
+      document.getElementById('profile-avatar-preview').src = currentUser.avatar;
+      document.getElementById('profile-display-name').innerText = currentUser.name;
+      document.getElementById('profile-badge-stay').innerText = currentUser.living;
+      document.getElementById('edit-name').value = currentUser.name;
+      document.getElementById('edit-phone').value = currentUser.phone || '';
+      document.getElementById('edit-bio').value = currentUser.bio || '';
+    }
+
+    function toggleEditStayOptions() {
+      const stayType = document.getElementById('edit-stay-type').value;
+      const blockSelect = document.getElementById('edit-block-select');
+      const outsideInput = document.getElementById('edit-outside-input');
+
+      if (stayType === 'Hostel') {
+        blockSelect.classList.remove('hidden');
+        outsideInput.classList.add('hidden');
+      } else {
+        blockSelect.classList.add('hidden');
+        outsideInput.classList.remove('hidden');
+      }
+    }
+
+    async function handleSaveProfile(e) {
+      e.preventDefault();
+      clickSound();
+      if (!currentUser) return;
+
+      const myUid = currentUser.uid || currentUser.userId;
+      currentUser.name = escapeHTML(document.getElementById('edit-name').value.trim()) || currentUser.name;
+      const stayType = document.getElementById('edit-stay-type').value;
+      if (stayType === 'Hostel') {
+        currentUser.living = document.getElementById('edit-block-select').value;
+      } else {
+        currentUser.living = escapeHTML(document.getElementById('edit-outside-input').value.trim()) || 'Outside Room / Day Scholar';
+      }
+      currentUser.phone = escapeHTML(document.getElementById('edit-phone').value.trim());
+      currentUser.bio = escapeHTML(document.getElementById('edit-bio').value.trim());
+
+      localStorage.setItem('rideMateDistanceUser', JSON.stringify(currentUser));
+
+      if (db && myUid) {
+        try {
+          await setDoc(doc(db, 'users', myUid), {
+            name: currentUser.name,
+            living: currentUser.living,
+            phone: currentUser.phone,
+            bio: currentUser.bio,
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+        } catch (e) {}
+      }
+
+      updateNavProfile();
+      loadProfileForm();
+      setMascotMood("Profile updated! Vani approves! ✨");
+      navigate('explore');
+    }
+
+    function handleImageUpload(e) {
+      const file = e.target.files[0];
+      if (file && currentUser) {
+        const reader = new FileReader();
+        reader.onload = async function(event) {
+          currentUser.avatar = event.target.result;
+          document.getElementById('profile-avatar-preview').src = currentUser.avatar;
+          localStorage.setItem('rideMateDistanceUser', JSON.stringify(currentUser));
+          updateNavProfile();
+
+          const myUid = currentUser.uid || currentUser.userId;
+          if (db && myUid) {
+            try {
+              await updateDoc(doc(db, 'users', myUid), { avatar: currentUser.avatar });
+            } catch (e) {}
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function updateNavProfile() {
+      if (!currentUser) return;
+      const navUser = document.getElementById('nav-username');
+      const navAvatar = document.getElementById('nav-avatar');
+      if (navUser) navUser.innerText = currentUser.name.split(' ')[0];
+      if (navAvatar) navAvatar.src = currentUser.avatar;
+    }
+
+    // ==========================================
+    // 15. CHATBOT & GHOST HOUR ENGINE (CHIBI VANI)
+    // ==========================================
+    function toggleMascotChat() {
+      const panel = document.getElementById('mascot-chat-panel');
+      const bubble = document.getElementById('mascot-speech-bubble');
+      panel.classList.toggle('hidden');
+      if (!panel.classList.contains('hidden')) {
+        bubble.classList.add('opacity-0');
+        document.getElementById('bot-text-input').focus();
+      } else {
+        bubble.classList.remove('opacity-0');
+      }
+      lucide.createIcons();
+    }
+
+    function setMascotMood(text) {
+      const bubble = document.getElementById('mascot-speech-bubble');
+      const mascotText = document.getElementById('mascot-text');
+      if (!bubble || !mascotText) return;
+      mascotText.innerText = text;
+    }
+
+    function checkIsNightMode() {
+      if (isManualAnnabelle) return true;
+      const hour = new Date().getHours();
+      return (hour === 23 || hour === 0);
+    }
+
+    function toggleAnnabelleManual() {
+      isManualAnnabelle = !isManualAnnabelle;
+      updateMascotLook();
+    }
+
+    function updateMascotLook() {
+      const isNight = checkIsNightMode();
+      const badge = document.getElementById('doll-character-badge');
+      const eyeL = document.getElementById('chibi-eye-left');
+      const eyeR = document.getElementById('chibi-eye-right');
+      const nameTitle = document.getElementById('chatbot-name-title');
+      const statusSub = document.getElementById('chatbot-status-sub');
+      const nightIndicator = document.getElementById('night-mode-indicator');
+
+      if (!badge || !eyeL || !eyeR) return;
+
+      if (isNight) {
+        badge.classList.add('ghost-glow');
+        eyeL.setAttribute('fill', '#dc2626');
+        eyeR.setAttribute('fill', '#dc2626');
+        if (nameTitle) {
+          nameTitle.innerText = "Ghost Vani (Haunted Hour 11PM - 1AM)";
+          nameTitle.classList.add('text-red-400');
+        }
+        if (statusSub) statusSub.innerText = "Hostel gates locked... Are you outside? 🩸";
+        if (nightIndicator) nightIndicator.classList.remove('hidden');
+      } else {
+        badge.classList.remove('ghost-glow');
+        eyeL.setAttribute('fill', '#1e1b4b');
+        eyeR.setAttribute('fill', '#1e1b4b');
+        if (nameTitle) {
+          nameTitle.innerText = "RideMate Campus Assistant (Chibi Vani)";
+          nameTitle.classList.remove('text-red-400');
+        }
+        if (statusSub) statusSub.innerText = "Campus Guide • Curfew Alerts • Fair Split Engine";
+        if (nightIndicator) nightIndicator.classList.add('hidden');
+      }
+    }
+
+    function handleBotSendMessage(e) {
+      e.preventDefault();
+      clickSound();
+      const input = document.getElementById('bot-text-input');
+      const userText = input.value.trim();
+      if (!userText) return;
+
+      appendBotMessage(userText, true);
+      input.value = '';
+
+      setTimeout(() => {
+        const isNight = checkIsNightMode();
+        let reply = "";
+
+        if (isNight) {
+          const ghostReplies = [
+            "12 Mani aachu... Innum thoongalaama auto kekkura? Night travel panna Vani ghost kooda varum... 🩸",
+            "Warden round-ku vara poranga! Hostel gate pootitaanga, veliya maatuna ghost tha kaapathum! 👻",
+            "Palakkad road midnight-la romba irutta irukkum... Cab pool potu un frds-ah kootitu po!"
+          ];
+          reply = ghostReplies[Math.floor(Math.random() * ghostReplies.length)];
+        } else {
+          const lower = userText.toLowerCase();
+          if (lower.includes('split') || lower.includes('calculate') || lower.includes('formula')) {
+            reply = "Calculation romba simple pa! Madhukkarai eranguna ₹50, Ukkadam ₹125, Gandhipuram ₹325! Per-km segment formula with zero deficit! 🔢";
+          } else if (lower.includes('gate') || lower.includes('curfew') || lower.includes('time')) {
+            reply = "Hostel gate 6:30 PM-ku close aagidum! Auto late aana warden attendance cut panniduvanga, seekiram ride book pannu! 🙄";
+          } else if (lower.includes('kerala') || lower.includes('palakkad') || lower.includes('walayar')) {
+            const klCount = rides.filter(r => r.destination.includes('Palakkad') || r.destination.includes('Walayar')).length;
+            reply = `Palakkad train pudika poriya? Currently ${klCount} Kerala pool(s) active on the Explore page! 🌴`;
+          } else if (lower.includes('gandhipuram') || lower.includes('cbe')) {
+            const gCount = rides.filter(r => r.destination.includes('Gandhipuram')).length;
+            reply = `Gandhipuram Central-ku ${gCount} pools available irukku. Distance 20km, full fair split support! 🚗`;
+          } else {
+            const sassyReplies = [
+              "Enna pa over questions? Pool search panni join pannu, auto fare-ah split panni save pannu! 🙄",
+              "Epdi irukura pocket money-ku solo auto pona canteen-la juice kooda kudikka mudiyadhu. Olunga pool podu! 💅",
+              "Kasu split pannama oodiradha, system exact distance vechu per-head share calculate pannidum! 🚗"
+            ];
+            reply = sassyReplies[Math.floor(Math.random() * sassyReplies.length)];
+          }
+        }
+
+        appendBotMessage(reply, false);
+      }, 500);
+    }
+
+    function sendQuickBotQuery(q) {
+      document.getElementById('bot-text-input').value = q;
+      document.getElementById('bot-input-form').dispatchEvent(new Event('submit'));
+    }
+
+    function appendBotMessage(text, isMe) {
+      const container = document.getElementById('mascot-messages-body');
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `flex items-start gap-2 ${isMe ? 'flex-row-reverse' : ''}`;
+      msgDiv.innerHTML = `
+        <div class="px-3 py-2 rounded-2xl ${isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-indigo-100 text-indigo-950 rounded-tl-none'} leading-relaxed font-medium">
+          ${escapeHTML(text)}
+        </div>
+      `;
+      container.appendChild(msgDiv);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // ==========================================
+    // 16. NAVIGATION, MAP & ANALYTICS CHARTS
+    // ==========================================
+    function navigate(page) {
+      if (page === 'explore') {
+        showPage('explore-page');
+        renderRides();
+        setTimeout(initMap, 200);
+      } else if (page === 'create') {
+        showPage('create-page');
+        autoPopulateDistance();
+      } else if (page === 'my-rides') {
+        showPage('my-rides-page');
+        renderMyRides();
+      } else if (page === 'profile') {
+        showPage('profile-page');
+        loadProfileForm();
+      } else if (page === 'analytics') {
+        showPage('analytics-page');
+        setTimeout(initCharts, 200);
+      }
+      lucide.createIcons();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function showPage(pageId) {
+      ['auth-page', 'explore-page', 'create-page', 'my-rides-page', 'profile-page', 'analytics-page'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+      });
+      const target = document.getElementById(pageId);
+      if (target) target.classList.remove('hidden');
+    }
+
+    function setQuickFilter(text) {
+      document.getElementById('search-dest').value = text;
+      renderRides();
+    }
+
+    function autoPopulateDistance() {
+      const destSelect = document.getElementById('ride-dest');
+      const selected = destSelect.options[destSelect.selectedIndex];
+      const km = selected.getAttribute('data-km');
+      const fare = selected.getAttribute('data-fare');
+      if (km) document.getElementById('ride-km').value = km;
+      if (fare) document.getElementById('ride-fare').value = fare;
+    }
+
+    function autoFillSeats() {
+      const v = document.getElementById('ride-vehicle').value;
+      const s = document.getElementById('ride-seats');
+      if (v === 'Auto') s.value = 3;
+      else if (v === 'Cab') s.value = 4;
+      else if (v === 'Share-Auto') s.value = 6;
+    }
+
+    function startLiveClock() {
+      setInterval(() => {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const timeDisplay = document.getElementById('live-time-display');
+        if (timeDisplay) timeDisplay.innerText = timeString;
+        updateMascotLook();
+      }, 1000);
+    }
+
+    function initMap() {
+      if (mapInstance) return;
+      const mapEl = document.getElementById('map');
+      if (!mapEl) return;
+
+      mapInstance = L.map('map', { scrollWheelZoom: false }).setView([10.8800, 76.9000], 11);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(mapInstance);
+
+      const stops = [
+        { name: "Nehru College Campus", lat: 10.8872, lng: 76.9048, desc: "0 km Origin" },
+        { name: "TM Palayam Pirivu", lat: 10.8950, lng: 76.9180, desc: "3 km Stop" },
+        { name: "Madhukkarai Market", lat: 10.9025, lng: 76.9380, desc: "6 km Stop" },
+        { name: "Ukkadam Bus Stand", lat: 10.9902, lng: 76.9600, desc: "12 km Stop" },
+        { name: "Gandhipuram Central", lat: 11.0168, lng: 76.9678, desc: "20 km Terminal" },
+        { name: "Walayar Checkpost (Kerala)", lat: 10.8350, lng: 76.8450, desc: "10 km Border" },
+        { name: "Palakkad Junction (Kerala)", lat: 10.7867, lng: 76.6548, desc: "35 km Kerala Hub" }
+      ];
+
+      stops.forEach(stop => {
+        const marker = L.circleMarker([stop.lat, stop.lng], {
+          radius: 7,
+          fillColor: stop.name.includes("Kerala") ? "#10b981" : "#6366f1",
+          color: "#ffffff",
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 0.9
+        }).addTo(mapInstance);
+
+        marker.bindPopup(`<b>${escapeHTML(stop.name)}</b><br><span style="font-size:11px; color:#555;">${stop.desc}</span>`);
+      });
+    }
+
+    function initCharts() {
+      if (chartsInitialized) return;
+      const destCanvas = document.getElementById('destChart');
+      const blockCanvas = document.getElementById('blockChart');
+      const timeCanvas = document.getElementById('timeChart');
+      if (!destCanvas || !blockCanvas || !timeCanvas) return;
+
+      chartsInitialized = true;
+
+      new Chart(destCanvas, {
+        type: 'doughnut',
+        data: {
+          labels: ['TM Palayam (3km)', 'Madhukkarai (6km)', 'Ukkadam (12km)', 'Gandhipuram (20km)', 'Palakkad KL (35km)'],
+          datasets: [{
+            data: [25, 20, 25, 18, 12],
+            backgroundColor: ['#6366f1', '#3b82f6', '#ec4899', '#f59e0b', '#10b981'],
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
+        }
+      });
+
+      new Chart(blockCanvas, {
+        type: 'bar',
+        data: {
+          labels: ['Priyanka Block', 'Kamala Block', 'Priyadharshini', 'APJ Boys Block', 'Ramanujan', 'Outside PG'],
+          datasets: [{
+            label: 'Active Poolers',
+            data: [65, 52, 48, 74, 59, 82],
+            backgroundColor: '#6366f1',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { ticks: { font: { size: 9 } }, grid: { display: false } },
+            y: { grid: { color: '#f1f5f9' } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+
+      new Chart(timeCanvas, {
+        type: 'line',
+        data: {
+          labels: ['6 AM', '8 AM', '12 PM', '4 PM', '5 PM', '6 PM', '8 PM', '9 PM'],
+          datasets: [{
+            label: 'Ride Demand',
+            data: [25, 45, 30, 85, 95, 78, 40, 20],
+            borderColor: '#ec4899',
+            backgroundColor: 'rgba(236, 72, 153, 0.1)',
+            fill: true,
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { grid: { display: false } },
+            y: { grid: { color: '#f1f5f9' } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    // ==========================================
+    // 17. WINDOW METHOD BINDINGS
+    // ==========================================
+    Object.assign(window, {
+      clickSound,
+      playHelloRideMateSlang,
+      rotateMemeQuote,
+      navigate,
+      showPage,
+      setQuickFilter,
+      autoPopulateDistance,
+      autoFillSeats,
+      toggleMascotChat,
+      setMascotMood,
+      toggleAnnabelleManual,
+      handleBotSendMessage,
+      sendQuickBotQuery,
+      appendBotMessage,
+      toggleStayOptions,
+      toggleAuthMode,
+      triggerSplashLogin,
+      handleGoogleSignIn,
+      completeAuthSuccess,
+      logout,
+      handleImageUpload,
+      toggleEditStayOptions,
+      loadProfileForm,
+      handleSaveProfile,
+      renderRides,
+      directJoinRide,
+      openJoinModal,
+      closeJoinModal,
+      calculateDropPreview,
+      handleConfirmJoin,
+      leaveRide,
+      deleteRide,
+      handleCreateRide,
+      openEditModal,
+      closeEditModal,
+      handleSaveEditedRide,
+      renderMyRides,
+      openChatModal,
+      closeChatModal,
+      renderChatMessages,
+      handleSendMessage,
+      openFeedbackModal,
+      closeFeedbackModal,
+      handleSendFeedback,
+      initMap,
+      initCharts
+    });
+
+    // Launch Application
+    function init() {
+      lucide.createIcons();
+      startLiveClock();
+      setupAuthListener();
+      setupRidesRealtimeSync();
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  </script>
+</body>
+</html>
